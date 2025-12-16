@@ -5,6 +5,10 @@ $isAdminPage = true;
 require_once __DIR__ . '/header.php';
 ?>
 
+<!-- Modern Modal System -->
+<link rel="stylesheet" href="<?= asset('css/modal.css') ?>">
+<script src="<?= asset('js/modal.js') ?>" defer></script>
+
 <div class="admin-sidebar-overlay" id="adminSidebarOverlay"></div>
 
 <button class="admin-menu-toggle" id="adminMenuToggle" aria-label="Menü">
