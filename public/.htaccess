@@ -1,0 +1,42 @@
+RewriteEngine On
+
+# Force HTTPS (Production için aktif edin)
+# RewriteCond %{HTTPS} off
+# RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Force WWW veya non-WWW (İhtiyacınıza göre aktif edin)
+# RewriteCond %{HTTP_HOST} !^www\.
+# RewriteRule ^(.*)$ https://www.%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# 410 Gone - Kalıcı olarak kaldırılan sayfalar
+RewriteRule ^sultanbeyli-lastik-tamiri/?$ /410.php [L]
+RewriteRule ^kartal-lastik-tamiri/?$ /410.php [L]
+RewriteRule ^agri-lastik-tamiri/?$ /410.php [L]
+RewriteRule ^pendik-lastik-tamiri/?$ /410.php [L]
+RewriteRule ^ilkadim-lastik-tamiri/?$ /410.php [L]
+RewriteRule ^ladik-lastik-tamiri/?$ /410.php [L]
+RewriteRule ^atakum-lastik-tamiri/?$ /410.php [L]
+
+# Güvenlik Başlıkları
+<IfModule mod_headers.c>
+    # XSS Koruması
+    Header set X-XSS-Protection "1; mode=block"
+    # Clickjacking Koruması
+    Header set X-Frame-Options "SAMEORIGIN"
+    # MIME Type Sniffing Koruması
+    Header set X-Content-Type-Options "nosniff"
+    # Referrer Policy
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# Dosya yükleme limiti
+php_value upload_max_filesize 5M
+php_value post_max_size 5M
+
+# Dizin listelemeyi kapat
+Options -Indexes
+
+# Redirect to index.php if not a file or directory
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [QSA,L]

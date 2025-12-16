@@ -1,0 +1,76 @@
+# Composer
+/vendor/
+composer.phar
+composer.lock
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE & Editor files
+/.vscode/
+/.idea/
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+/logs/
+error_log
+
+# Cache & Session files
+/cache/
+/tmp/
+/storage/
+*.cache
+
+# Database
+*.sql
+*.sqlite
+*.db
+
+# Configuration files (sensitive) - NOT NEEDED ANYMORE, using .env instead
+# /config/database.php
+# /config/config.local.php
+# /config/mail.php
+
+# Uploads & User content
+/public/uploads/
+/public/images/uploads/
+
+# System files
+.htaccess.local
+sftp-config.json
+.ftpconfig
+
+# Build files
+/build/
+/dist/
+
+# Backups
+*.backup
+*.bak
+*.swp
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+desktop.ini
+
+# PHPStorm
+.idea/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Claude
+.claude/
