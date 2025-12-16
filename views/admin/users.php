@@ -82,7 +82,7 @@
                         </td>
                         <td class="action-buttons">
                             <?php if ($user['role'] !== 'admin'): ?>
-                                <form method="POST" action="<?= $this->getConfig('base_path') ?>/admin/kullanici-sil/<?= $user['id'] ?>" style="display: inline;" onsubmit="return confirm('Bu kullanıcıyı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz!');">
+                                <form method="POST" action="<?= $this->getConfig('base_path') ?>/admin/kullanici-sil/<?= $user['id'] ?>" style="display: inline;" class="delete-form">
                                     <button type="submit" class="btn btn-small btn-danger btn-icon" title="Sil">
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <polyline points="3 6 5 6 21 6"></polyline>
@@ -114,42 +114,64 @@
 <?php endif; ?>
 
 <script>
-// Gerçek zamanlı arama
-const searchInput = document.getElementById('searchInput');
-const usersTable = document.getElementById('usersTable');
-const userRows = document.querySelectorAll('.user-row');
-const noResults = document.getElementById('noResults');
-const totalCount = document.getElementById('totalCount');
+document.addEventListener('DOMContentLoaded', function() {
+    // Gerçek zamanlı arama
+    const searchInput = document.getElementById('searchInput');
+    const usersTable = document.getElementById('usersTable');
+    const userRows = document.querySelectorAll('.user-row');
+    const noResults = document.getElementById('noResults');
+    const totalCount = document.getElementById('totalCount');
 
-if (searchInput && usersTable) {
-    searchInput.addEventListener('input', function() {
-        const searchTerm = this.value.toLowerCase().trim();
-        let visibleCount = 0;
+    if (searchInput && usersTable) {
+        searchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase().trim();
+            let visibleCount = 0;
 
-        userRows.forEach(row => {
-            const userInfo = row.getAttribute('data-user-info');
+            userRows.forEach(row => {
+                const userInfo = row.getAttribute('data-user-info');
 
-            if (userInfo.includes(searchTerm)) {
-                row.style.display = '';
-                visibleCount++;
+                if (userInfo.includes(searchTerm)) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            // Sonuç sayısını güncelle
+            totalCount.textContent = visibleCount;
+
+            // Sonuç bulunamadı mesajını göster/gizle
+            if (visibleCount === 0) {
+                usersTable.style.display = 'none';
+                noResults.style.display = 'block';
             } else {
-                row.style.display = 'none';
+                usersTable.style.display = 'table';
+                noResults.style.display = 'none';
             }
         });
+    }
 
-        // Sonuç sayısını güncelle
-        totalCount.textContent = visibleCount;
+    // Silme işlemini modern modal ile doğrula
+    document.querySelectorAll('.delete-form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formElement = this;
 
-        // Sonuç bulunamadı mesajını göster/gizle
-        if (visibleCount === 0) {
-            usersTable.style.display = 'none';
-            noResults.style.display = 'block';
-        } else {
-            usersTable.style.display = 'table';
-            noResults.style.display = 'none';
-        }
+            if (window.modal) {
+                window.modal.confirm(
+                    'Bu kullanıcıyı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz!',
+                    function() {
+                        // Onaylandı, formu gönder
+                        formElement.submit();
+                    },
+                    null,
+                    'Kullanıcı Silme Onayı'
+                );
+            }
+        });
     });
-}
+});
 </script>
 
 <style>

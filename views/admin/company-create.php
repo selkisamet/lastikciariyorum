@@ -215,7 +215,11 @@
         if (userEmail || fullName || password) {
             if (!userEmail || !fullName || !password) {
                 e.preventDefault();
-                alert('Kullanıcı oluşturmak için E-posta, Tam Ad ve Şifre alanlarını doldurmanız gerekiyor.');
+                if (window.modal) {
+                    window.modal.alert('Kullanıcı oluşturmak için E-posta, Tam Ad ve Şifre alanlarını doldurmanız gerekiyor.');
+                } else {
+                    alert('Kullanıcı oluşturmak için E-posta, Tam Ad ve Şifre alanlarını doldurmanız gerekiyor.');
+                }
                 return false;
             }
         }

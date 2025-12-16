@@ -79,7 +79,7 @@
                                     <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
                                 </svg>
                             </a>
-                            <form method="POST" action="<?= $this->getConfig('base_path') ?>/admin/makale-sil/<?= $article['id'] ?>" style="display: inline;" onsubmit="return confirm('Bu makaleyi silmek istediğinizden emin misiniz? Bu işlem geri alınamaz!');">
+                            <form method="POST" action="<?= $this->getConfig('base_path') ?>/admin/makale-sil/<?= $article['id'] ?>" style="display: inline;" class="delete-form">
                                 <button type="submit" class="btn btn-small btn-danger btn-icon" title="Sil">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <polyline points="3 6 5 6 21 6"></polyline>
@@ -108,42 +108,64 @@
 <?php endif; ?>
 
 <script>
-// Gerçek zamanlı arama
-const searchInput = document.getElementById('searchInput');
-const articlesTable = document.getElementById('articlesTable');
-const articleRows = document.querySelectorAll('.article-row');
-const noResults = document.getElementById('noResults');
-const totalCount = document.getElementById('totalCount');
+document.addEventListener('DOMContentLoaded', function() {
+    // Gerçek zamanlı arama
+    const searchInput = document.getElementById('searchInput');
+    const articlesTable = document.getElementById('articlesTable');
+    const articleRows = document.querySelectorAll('.article-row');
+    const noResults = document.getElementById('noResults');
+    const totalCount = document.getElementById('totalCount');
 
-if (searchInput && articlesTable) {
-    searchInput.addEventListener('input', function() {
-        const searchTerm = this.value.toLowerCase().trim();
-        let visibleCount = 0;
+    if (searchInput && articlesTable) {
+        searchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase().trim();
+            let visibleCount = 0;
 
-        articleRows.forEach(row => {
-            const articleTitle = row.getAttribute('data-article-title');
+            articleRows.forEach(row => {
+                const articleTitle = row.getAttribute('data-article-title');
 
-            if (articleTitle.includes(searchTerm)) {
-                row.style.display = '';
-                visibleCount++;
+                if (articleTitle.includes(searchTerm)) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            // Sonuç sayısını güncelle
+            totalCount.textContent = visibleCount;
+
+            // Sonuç bulunamadı mesajını göster/gizle
+            if (visibleCount === 0) {
+                articlesTable.style.display = 'none';
+                noResults.style.display = 'block';
             } else {
-                row.style.display = 'none';
+                articlesTable.style.display = 'table';
+                noResults.style.display = 'none';
             }
         });
+    }
 
-        // Sonuç sayısını güncelle
-        totalCount.textContent = visibleCount;
+    // Silme işlemini modern modal ile doğrula
+    document.querySelectorAll('.delete-form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formElement = this;
 
-        // Sonuç bulunamadı mesajını göster/gizle
-        if (visibleCount === 0) {
-            articlesTable.style.display = 'none';
-            noResults.style.display = 'block';
-        } else {
-            articlesTable.style.display = 'table';
-            noResults.style.display = 'none';
-        }
+            if (window.modal) {
+                window.modal.confirm(
+                    'Bu makaleyi silmek istediğinizden emin misiniz? Bu işlem geri alınamaz!',
+                    function() {
+                        // Onaylandı, formu gönder
+                        formElement.submit();
+                    },
+                    null,
+                    'Makale Silme Onayı'
+                );
+            }
+        });
     });
-}
+});
 </script>
 
 <style>

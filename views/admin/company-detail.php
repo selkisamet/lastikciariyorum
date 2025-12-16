@@ -26,8 +26,8 @@
                             <span class="status-badge status-approved">✓ Onaylı</span>
                         <?php else: ?>
                             <span class="status-badge status-pending">⏱ Onay Bekliyor</span>
-                            <form method="POST" action="<?= $this->getConfig('base_path') ?>/admin/firma-onayla/<?= $company['id'] ?>" style="display: inline; margin-left: 1rem;">
-                                <button type="submit" class="btn btn-success btn-small" onclick="return confirm('Bu firmayı onaylamak istediğinizden emin misiniz?')">
+                            <form method="POST" action="<?= $this->getConfig('base_path') ?>/admin/firma-onayla/<?= $company['id'] ?>" style="display: inline; margin-left: 1rem;" class="approve-form">
+                                <button type="submit" class="btn btn-success btn-small">
                                     ✓ Firmayı Onayla
                                 </button>
                             </form>
@@ -322,5 +322,29 @@
     }
 }
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Onay işlemini modern modal ile doğrula
+    document.querySelectorAll('.approve-form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formElement = this;
+
+            if (window.modal) {
+                window.modal.confirm(
+                    'Bu firmayı onaylamak istediğinizden emin misiniz?',
+                    function() {
+                        // Onaylandı, formu gönder
+                        formElement.submit();
+                    },
+                    null,
+                    'Firma Onaylama'
+                );
+            }
+        });
+    });
+});
+</script>
 
 <?php require_once __DIR__ . '/../layouts/admin-footer.php'; ?>
