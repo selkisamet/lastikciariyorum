@@ -38,6 +38,7 @@
                     <th>Başlık</th>
                     <th>İl / İlçe</th>
                     <th>Durum</th>
+                    <th>Görüntülenme</th>
                     <th>Tarih</th>
                     <th>İşlemler</th>
                 </tr>
@@ -58,6 +59,9 @@
                             <?php else: ?>
                                 <span class="status-badge status-draft">Taslak</span>
                             <?php endif; ?>
+                        </td>
+                        <td>
+                            <span class="view-count">👁 <?= number_format($article['view_count']) ?></span>
                         </td>
                         <td>
                             <?php
@@ -316,6 +320,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
 .btn-info:hover {
     background-color: #138496;
+}
+
+.view-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
 }
 
 .table-info {

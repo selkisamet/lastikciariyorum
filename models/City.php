@@ -44,4 +44,62 @@ class City extends Model
 
         return $this->db->fetchAll($sql, ['%' . $term . '%']);
     }
+
+    /**
+     * HUB SEO: Get city by slug with decoded H2 sections
+     */
+    public function getBySlugWithH2($slug)
+    {
+        $city = $this->findBySlug($slug);
+        if ($city && isset($city['h2_sections'])) {
+            $city['h2_sections'] = json_decode($city['h2_sections'], true) ?? [];
+        }
+        return $city;
+    }
+
+    /**
+     * HUB SEO: Get city by ID with decoded H2 sections
+     */
+    public function getWithH2Sections($cityId)
+    {
+        $city = $this->findBy('id', $cityId);
+        if ($city && isset($city['h2_sections'])) {
+            $city['h2_sections'] = json_decode($city['h2_sections'], true) ?? [];
+        }
+        return $city;
+    }
+
+    /**
+     * HUB SEO: Save city with encoded H2 sections
+     */
+    public function saveWithH2Sections($id, $data)
+    {
+        if (isset($data['h2_sections'])) {
+            // Validate and encode JSON structure
+            if (is_array($data['h2_sections'])) {
+                $data['h2_sections'] = json_encode($data['h2_sections'], JSON_UNESCAPED_UNICODE);
+            }
+        }
+
+        return $this->update($id, $data);
+    }
+
+    /**
+     * Update city record
+     */
+    public function update($id, $data)
+    {
+        $fields = [];
+        $values = [];
+
+        foreach ($data as $key => $value) {
+            $fields[] = "$key = ?";
+            $values[] = $value;
+        }
+
+        $values[] = $id;
+        $sql = "UPDATE {$this->table} SET " . implode(', ', $fields) . " WHERE id = ?";
+
+        return $this->db->query($sql, $values);
+    }
 }

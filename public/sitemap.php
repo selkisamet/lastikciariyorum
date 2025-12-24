@@ -10,7 +10,7 @@ header('Content-Type: application/xml; charset=utf-8');
 
 try {
     $db = Database::getInstance();
-    $baseUrl = 'https://lastikciariyorum.com';
+    $baseUrl = 'https://www.lastikciariyorum.com';
 
     echo '<?xml version="1.0" encoding="UTF-8"?>';
 ?>
@@ -118,7 +118,7 @@ try {
             FROM companies comp
             JOIN cities c ON comp.city_id = c.id
             LEFT JOIN districts d ON comp.district_id = d.id
-            WHERE comp.approved = 1 AND comp.deleted_at IS NULL
+            WHERE comp.is_approved = 1
             ORDER BY comp.updated_at DESC
         ");
             foreach ($companies as $company):
@@ -148,7 +148,7 @@ try {
             FROM articles a
             JOIN cities c ON a.city_id = c.id
             LEFT JOIN districts d ON a.district_id = d.id
-            WHERE a.deleted_at IS NULL
+            WHERE a.is_published = 1
             ORDER BY a.created_at DESC
         ");
             foreach ($articles as $article):

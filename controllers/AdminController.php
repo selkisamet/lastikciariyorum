@@ -440,7 +440,7 @@ class AdminController extends Controller
 
         $data = [
             'city_id' => $_POST['city_id'],
-            'district_id' => $_POST['district_id'] ?? null,
+            'district_id' => !empty($_POST['district_id']) ? $_POST['district_id'] : null,
             'title' => $_POST['title'],
             'slug' => $this->generateSlug($_POST['title']),
             'content' => $_POST['content'],
@@ -500,7 +500,7 @@ class AdminController extends Controller
 
         $data = [
             'city_id' => $_POST['city_id'],
-            'district_id' => $_POST['district_id'] ?? null,
+            'district_id' => !empty($_POST['district_id']) ? $_POST['district_id'] : null,
             'title' => $_POST['title'],
             'slug' => $this->generateSlug($_POST['title']),
             'content' => $_POST['content'],
@@ -841,6 +841,66 @@ class AdminController extends Controller
         ]);
     }
 
+    public function downloadExampleExcel()
+    {
+        // Composer autoload
+        require_once __DIR__ . '/../vendor/autoload.php';
+
+        try {
+            // Yeni bir spreadsheet oluştur
+            $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+
+            // Başlık satırını ayarla
+            $headers = ['name', 'city_id', 'district_id', 'phone', 'address', 'website'];
+            $sheet->fromArray($headers, null, 'A1');
+
+            // Başlık satırını kalın yap
+            $sheet->getStyle('A1:F1')->getFont()->setBold(true);
+            $sheet->getStyle('A1:F1')->getFill()
+                ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                ->getStartColor()->setARGB('FFE9ECEF');
+
+            // Örnek verileri ekle
+            $exampleData = [
+                ['ABC Lastik Tamiri', 'İstanbul', 'Kadıköy', '0216 555 1234', 'Caferağa Mah. Örnek Sok. No:1', 'www.abclastik.com'],
+                ['XYZ Oto Lastik', 'İstanbul', 'Beşiktaş', '0212 555 5678', 'Levent Mah. Lastik Cad. No:5', ''],
+                ['123 Lastik Servisi', 'Ankara', 'Çankaya', '0312 555 9876', 'Kızılay Mah. Atatürk Blv. No:10', 'www.123lastik.com'],
+            ];
+            $sheet->fromArray($exampleData, null, 'A2');
+
+            // Sütun genişliklerini otomatik ayarla
+            foreach (range('A', 'F') as $col) {
+                $sheet->getColumnDimension($col)->setAutoSize(true);
+            }
+
+            // Sınırlar ekle
+            $styleArray = [
+                'borders' => [
+                    'allBorders' => [
+                        'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                        'color' => ['argb' => 'FF000000'],
+                    ],
+                ],
+            ];
+            $sheet->getStyle('A1:F4')->applyFromArray($styleArray);
+
+            // Dosyayı indir
+            $filename = 'firma-import-ornegi-' . date('Y-m-d') . '.xlsx';
+
+            header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            header('Content-Disposition: attachment;filename="' . $filename . '"');
+            header('Cache-Control: max-age=0');
+
+            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+            $writer->save('php://output');
+            exit;
+        } catch (Exception $e) {
+            $_SESSION['error'] = 'Örnek dosya oluşturulurken bir hata oluştu: ' . $e->getMessage();
+            $this->redirect('/admin/firma-import');
+        }
+    }
+
     /**
      * Kullanıcı Oluşturma Formu
      */
@@ -1063,5 +1123,179 @@ class AdminController extends Controller
         $text = preg_replace('/[^a-z0-9-]/', '-', $text);
         $text = preg_replace('/-+/', '-', $text);
         return trim($text, '-');
+    }
+
+    /**
+     * HUB SEO: City (Şehir) List
+     */
+    public function cities()
+    {
+        $cities = $this->cityModel->getAllWithCounts();
+
+        $this->view('admin.cities', [
+            'pageTitle' => 'Şehir Yönetimi',
+            'cities' => $cities,
+        ]);
+    }
+
+    /**
+     * HUB SEO: Edit City Form
+     */
+    public function editCityForm($id)
+    {
+        $city = $this->cityModel->getWithH2Sections($id);
+
+        if (!$city) {
+            $_SESSION['error'] = 'Şehir bulunamadı.';
+            $this->redirect('/admin/sehirler');
+            return;
+        }
+
+        // Get articles for this city for H2 section linking
+        $articles = $this->articleModel->getByCity($id, null);
+
+        $this->view('admin.city-edit', [
+            'pageTitle' => 'Şehir Düzenle - ' . $city['name'],
+            'city' => $city,
+            'articles' => $articles,
+        ]);
+    }
+
+    /**
+     * HUB SEO: Update City
+     */
+    public function updateCity($id)
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('/admin/sehirler');
+            return;
+        }
+
+        $city = $this->cityModel->findBy('id', $id);
+
+        if (!$city) {
+            $_SESSION['error'] = 'Şehir bulunamadı.';
+            $this->redirect('/admin/sehirler');
+            return;
+        }
+
+        // Process H2 sections from form
+        $h2Sections = [];
+        if (isset($_POST['h2_titles']) && is_array($_POST['h2_titles'])) {
+            foreach ($_POST['h2_titles'] as $index => $title) {
+                if (!empty($title)) {
+                    $h2Sections[] = [
+                        'title' => trim($title),
+                        'description' => trim($_POST['h2_descriptions'][$index] ?? ''),
+                        'linked_article_id' => !empty($_POST['h2_article_ids'][$index])
+                            ? (int)$_POST['h2_article_ids'][$index]
+                            : null,
+                    ];
+                }
+            }
+        }
+
+        $data = [
+            'h1' => $_POST['h1'] ?? null,
+            'content' => $_POST['content'] ?? null,
+            'meta_title' => $_POST['meta_title'] ?? null,
+            'meta_description' => $_POST['meta_description'] ?? null,
+            'page_description' => $_POST['page_description'] ?? null,
+            'h2_sections' => $h2Sections,
+        ];
+
+        $this->cityModel->saveWithH2Sections($id, $data);
+
+        $_SESSION['success'] = 'Şehir bilgileri başarıyla güncellendi.';
+        $this->redirect('/admin/sehirler');
+    }
+
+    /**
+     * HUB SEO: District (İlçe) List
+     */
+    public function districts()
+    {
+        $districts = $this->districtModel->getAllWithCounts();
+
+        $this->view('admin.districts', [
+            'pageTitle' => 'İlçe Yönetimi',
+            'districts' => $districts,
+        ]);
+    }
+
+    /**
+     * HUB SEO: Edit District Form
+     */
+    public function editDistrictForm($id)
+    {
+        $district = $this->districtModel->getWithH2Sections($id);
+
+        if (!$district) {
+            $_SESSION['error'] = 'İlçe bulunamadı.';
+            $this->redirect('/admin/ilceler');
+            return;
+        }
+
+        // Get city info
+        $city = $this->cityModel->findBy('id', $district['city_id']);
+
+        // Get articles for this district for H2 section linking
+        $articles = $this->articleModel->getByDistrict($id, null);
+
+        $this->view('admin.district-edit', [
+            'pageTitle' => 'İlçe Düzenle - ' . $district['name'],
+            'district' => $district,
+            'city' => $city,
+            'articles' => $articles,
+        ]);
+    }
+
+    /**
+     * HUB SEO: Update District
+     */
+    public function updateDistrict($id)
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('/admin/ilceler');
+            return;
+        }
+
+        $district = $this->districtModel->getWithH2Sections($id);
+
+        if (!$district) {
+            $_SESSION['error'] = 'İlçe bulunamadı.';
+            $this->redirect('/admin/ilceler');
+            return;
+        }
+
+        // Process H2 sections from form
+        $h2Sections = [];
+        if (isset($_POST['h2_titles']) && is_array($_POST['h2_titles'])) {
+            foreach ($_POST['h2_titles'] as $index => $title) {
+                if (!empty($title)) {
+                    $h2Sections[] = [
+                        'title' => trim($title),
+                        'description' => trim($_POST['h2_descriptions'][$index] ?? ''),
+                        'linked_article_id' => !empty($_POST['h2_article_ids'][$index])
+                            ? (int)$_POST['h2_article_ids'][$index]
+                            : null,
+                    ];
+                }
+            }
+        }
+
+        $data = [
+            'h1' => $_POST['h1'] ?? null,
+            'content' => $_POST['content'] ?? null,
+            'meta_title' => $_POST['meta_title'] ?? null,
+            'meta_description' => $_POST['meta_description'] ?? null,
+            'page_description' => $_POST['page_description'] ?? null,
+            'h2_sections' => $h2Sections,
+        ];
+
+        $this->districtModel->saveWithH2Sections($id, $data);
+
+        $_SESSION['success'] = 'İlçe bilgileri başarıyla güncellendi.';
+        $this->redirect('/admin/ilceler');
     }
 }

@@ -44,7 +44,7 @@
 
             <div class="form-group full-width">
                 <label for="content">İçerik *</label>
-                <textarea id="content" name="content" class="form-input" rows="10" required><?= htmlspecialchars($article['content']) ?></textarea>
+                <textarea id="content" name="content" class="form-input" rows="10"><?= htmlspecialchars($article['content']) ?></textarea>
             </div>
 
             <div class="form-group full-width">
@@ -120,6 +120,16 @@ tinymce.init({
         editor.on('init', function() {
             console.log('TinyMCE editor yüklendi');
         });
+    }
+});
+
+// Form submit doğrulaması
+document.querySelector('.standard-form').addEventListener('submit', function(e) {
+    const content = tinymce.get('content').getContent();
+    if (!content.trim()) {
+        e.preventDefault();
+        alert('İçerik alanı zorunludur!');
+        return false;
     }
 });
 </script>

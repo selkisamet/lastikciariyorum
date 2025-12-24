@@ -8,6 +8,14 @@
             <?= $breadcrumb ?>
         </nav>
         <?php endif; ?>
+
+        <?php if (isset($h1) && $h1): ?>
+        <h1 class="page-title"><?= $h1 ?></h1>
+        <?php endif; ?>
+
+        <?php if (isset($pageDescription) && $pageDescription): ?>
+        <p class="page-description"><?= $pageDescription ?></p>
+        <?php endif; ?>
     </div>
 </div>
 <?php endif; ?>

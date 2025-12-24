@@ -131,3 +131,90 @@ function asset($path) {
 function url($path = '') {
     return siteUrl() . '/' . ltrim($path, '/');
 }
+
+/**
+ * Makale içeriğinden otomatik özet oluşturur
+ *
+ * @param string $content HTML içerik
+ * @param int $maxChars Maksimum karakter sayısı (varsayılan: 100)
+ * @param int $maxWords Maksimum kelime sayısı (varsayılan: 15)
+ * @return string
+ */
+function generateExcerpt($content, $maxChars = 100, $maxWords = 15) {
+    // HTML etiketlerini temizle
+    $text = strip_tags($content);
+
+    // HTML entity'lerini decode et (&ccedil; -> ç, &uuml; -> ü gibi)
+    $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+    // Fazla boşlukları temizle
+    $text = preg_replace('/\s+/', ' ', $text);
+    $text = trim($text);
+
+    // Boş içerik kontrolü
+    if (empty($text)) {
+        return '';
+    }
+
+    // Kelimelere ayır
+    $words = explode(' ', $text);
+
+    // Kelime sayısına göre kısalt
+    if (count($words) > $maxWords) {
+        $words = array_slice($words, 0, $maxWords);
+        $text = implode(' ', $words) . '...';
+    }
+
+    // Karakter sayısına göre kısalt
+    if (mb_strlen($text) > $maxChars) {
+        $text = mb_substr($text, 0, $maxChars);
+
+        // Son kelimeyi tam göster (kelime ortasında kesmeyi önle)
+        $lastSpace = mb_strrpos($text, ' ');
+        if ($lastSpace !== false) {
+            $text = mb_substr($text, 0, $lastSpace);
+        }
+
+        $text .= '...';
+    }
+
+    return $text;
+}
+
+/**
+ * Makale özeti döndürür. Özet yoksa içerikten otomatik oluşturur
+ *
+ * @param string|null $excerpt Mevcut özet
+ * @param string $content Makale içeriği
+ * @return string
+ */
+function getArticleExcerpt($excerpt, $content) {
+    if (!empty($excerpt)) {
+        return $excerpt;
+    }
+
+    return generateExcerpt($content);
+}
+
+/**
+ * Türkçe karakterleri normalize ederek küçük harfe çevirir
+ * JavaScript'teki normalizeTurkish() ile aynı mantıkta çalışır
+ *
+ * @param string $text Normalize edilecek metin
+ * @return string Normalize edilmiş metin
+ */
+function normalizeTurkish($text) {
+    if (empty($text)) {
+        return '';
+    }
+
+    // Türkçe büyük harfleri küçük harflerine dönüştür
+    $text = str_replace(
+        ['İ', 'I', 'Ş', 'Ğ', 'Ü', 'Ö', 'Ç'],
+        ['i', 'ı', 'ş', 'ğ', 'ü', 'ö', 'ç'],
+        $text
+    );
+
+    // Standart küçük harfe çevir
+    return mb_strtolower($text, 'UTF-8');
+}

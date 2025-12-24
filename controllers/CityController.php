@@ -23,7 +23,8 @@ class CityController extends Controller
 
     public function show($citySlug)
     {
-        $city = $this->cityModel->findBySlug($citySlug);
+        // HUB SEO: Use getBySlugWithH2 to decode h2_sections
+        $city = $this->cityModel->getBySlugWithH2($citySlug);
 
         if (!$city) {
             http_response_code(404);
@@ -35,13 +36,32 @@ class CityController extends Controller
         $articles = $this->articleModel->getByCity($city['id']);
         $companies = $this->companyModel->getByCity($city['id']);
 
+        // HUB SEO: Separate H1, meta title, meta description, and page description
+        $h1 = !empty($city['h1'])
+            ? $city['h1']
+            : $city['name'] . ' Lastik Tamircileri';
+
+        $pageTitle = !empty($city['meta_title'])
+            ? $city['meta_title']
+            : $h1;
+
+        $metaDescription = !empty($city['meta_description'])
+            ? $city['meta_description']
+            : $city['name'] . ' ilinde güvenilir lastik tamir hizmetleri.';
+
+        $pageDescription = !empty($city['page_description'])
+            ? $city['page_description']
+            : $metaDescription;
+
         $this->view('city.show', [
             'city' => $city,
             'districts' => $districts,
             'articles' => $articles,
             'companies' => $companies,
-            'pageTitle' => $city['meta_title'] ?? $city['name'] . ' Lastik Tamircileri',
-            'metaDescription' => $city['meta_description'] ?? $city['name'] . ' ilinde güvenilir lastik tamir hizmetleri.',
+            'h1' => $h1,
+            'pageTitle' => $pageTitle,
+            'metaDescription' => $metaDescription,
+            'pageDescription' => $pageDescription,
         ]);
     }
 
@@ -55,7 +75,8 @@ class CityController extends Controller
             return;
         }
 
-        $district = $this->districtModel->findBySlug($city['id'], $districtSlug);
+        // HUB SEO: Use getBySlugWithH2 to decode h2_sections
+        $district = $this->districtModel->getBySlugWithH2($city['id'], $districtSlug);
 
         if (!$district) {
             http_response_code(404);
@@ -66,13 +87,32 @@ class CityController extends Controller
         $articles = $this->articleModel->getByDistrict($district['id']);
         $companies = $this->companyModel->getByDistrict($district['id']);
 
+        // HUB SEO: Separate H1, meta title, meta description, and page description
+        $h1 = !empty($district['h1'])
+            ? $district['h1']
+            : $district['name'] . ' Lastik Tamircileri';
+
+        $pageTitle = !empty($district['meta_title'])
+            ? $district['meta_title']
+            : $h1;
+
+        $metaDescription = !empty($district['meta_description'])
+            ? $district['meta_description']
+            : $city['name'] . ' ili ' . $district['name'] . ' ilçesinde güvenilir lastik tamir hizmetleri.';
+
+        $pageDescription = !empty($district['page_description'])
+            ? $district['page_description']
+            : $metaDescription;
+
         $this->view('city.district', [
             'city' => $city,
             'district' => $district,
             'articles' => $articles,
             'companies' => $companies,
-            'pageTitle' => $district['meta_title'] ?? $district['name'] . ' Lastik Tamircileri',
-            'metaDescription' => $district['meta_description'] ?? $district['name'] . ' ilçesinde güvenilir lastik tamir hizmetleri.',
+            'h1' => $h1,
+            'pageTitle' => $pageTitle,
+            'metaDescription' => $metaDescription,
+            'pageDescription' => $pageDescription,
         ]);
     }
 }

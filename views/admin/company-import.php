@@ -11,6 +11,69 @@
         <h2>Excel Dosyası Yükle</h2>
         <p class="text-muted">Excel dosyası kullanarak toplu firma ekleme işlemi yapabilirsiniz.</p>
 
+        <div class="info-box info-primary">
+            <h3>📋 Excel Dosyası Formatı</h3>
+            <p>Excel dosyanızın ilk satırında aşağıdaki sütun başlıklarını kullanın:</p>
+            <table class="example-table">
+                <thead>
+                    <tr>
+                        <th>name</th>
+                        <th>city_id</th>
+                        <th>district_id</th>
+                        <th>phone</th>
+                        <th>address</th>
+                        <th>website</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>ABC Lastik Tamiri</td>
+                        <td>İstanbul</td>
+                        <td>Kadıköy</td>
+                        <td>0216 555 1234</td>
+                        <td>Caferağa Mah. Örnek Sok. No:1</td>
+                        <td>www.abclastik.com</td>
+                    </tr>
+                    <tr>
+                        <td>XYZ Oto Lastik</td>
+                        <td>İstanbul</td>
+                        <td>Beşiktaş</td>
+                        <td>0212 555 5678</td>
+                        <td>Levent Mah. Lastik Cad. No:5</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td>123 Lastik Servisi</td>
+                        <td>Ankara</td>
+                        <td>Çankaya</td>
+                        <td>0312 555 9876</td>
+                        <td>Kızılay Mah. Atatürk Blv. No:10</td>
+                        <td>www.123lastik.com</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="mt-2">
+                <a href="<?= $this->getConfig('base_path') ?>/admin/firma-import-ornek-indir" class="btn btn-success">
+                    📥 Örnek Excel Dosyasını İndir
+                </a>
+            </div>
+        </div>
+
+        <div class="info-box info-warning">
+            <h3>⚠️ Önemli Notlar</h3>
+            <ul>
+                <li><strong>İlk satır:</strong> Sütun başlıkları olmalı (<code>name</code>, <code>city_id</code>, <code>district_id</code>, <code>phone</code>, <code>address</code>, <code>website</code>)</li>
+                <li><strong>İkinci satırdan itibaren:</strong> Firma verileri</li>
+                <li><strong>Zorunlu sütunlar:</strong> <code>name</code> (Firma Adı), <code>city_id</code> (İl Adı), <code>district_id</code> (İlçe Adı)</li>
+                <li><strong>İsteğe bağlı sütunlar:</strong> <code>phone</code> (Telefon), <code>address</code> (Adres), <code>website</code> (Web Sitesi)</li>
+                <li><strong>İl ve İlçe:</strong> Veritabanında kayıtlı olan tam adları kullanın (örn: "İstanbul", "Kadıköy")</li>
+                <li><strong>Dosya formatı:</strong> .xlsx veya .xls</li>
+                <li><strong>Maksimum dosya boyutu:</strong> 5 MB</li>
+                <li><strong>Boş satırlar:</strong> Otomatik olarak atlanır</li>
+            </ul>
+        </div>
+
         <form action="<?= $this->getConfig('base_path') ?>/admin/firma-import-process" method="POST" enctype="multipart/form-data" class="import-form">
             <div class="form-group">
                 <label for="excel_file" class="form-label">Excel Dosyası Seçin</label>
