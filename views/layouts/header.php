@@ -11,7 +11,7 @@
     <meta name="keywords" content="lastik tamircisi, lastik tamir, lastik değişimi, <?= $pageTitle ?? 'lastik servisi' ?>">
     <meta name="author" content="Lastikciariyorum.com">
     <meta name="robots" content="index, follow">
-    <link rel="canonical" href="https://lastikciariyorum.com<?= $_SERVER['REQUEST_URI'] ?>">
+    <link rel="canonical" href="https://www.lastikciariyorum.com<?= $_SERVER['REQUEST_URI'] ?>">
 
     <!-- Google Site Verification -->
     <meta name="google-site-verification" content="cVr1pk2cEtoApo4VQuRPzUz7u-w53oisqZCz2OaoZVI" />
@@ -20,16 +20,16 @@
     // Admin sayfalarında reklam gösterme
     if (!isset($GLOBALS['isAdminPage'])) {
         $GLOBALS['isAdminPage'] = isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'admin' &&
-                                   (strpos($_SERVER['REQUEST_URI'], '/admin') !== false);
+            (strpos($_SERVER['REQUEST_URI'], '/admin') !== false);
     }
     $isAdminPage = $GLOBALS['isAdminPage'];
     ?>
 
     <?php if (!$isAdminPage): ?>
-    <!-- Google AdSense -->
-    <meta name="google-adsense-account" content="ca-pub-6682213256253444">
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6682213256253444"
-        crossorigin="anonymous"></script>
+        <!-- Google AdSense -->
+        <meta name="google-adsense-account" content="ca-pub-6682213256253444">
+        <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6682213256253444"
+                crossorigin="anonymous"></script>
     <?php endif; ?>
 
     <!-- Open Graph / Facebook -->
@@ -171,16 +171,18 @@
         </script>
     <?php endif; ?>
 
-    <!-- Google Analytics (Production'da aktif edin) -->
-    <!--
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-CCQS82S888"></script>
     <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-XXXXXXXXXX');
+        window.dataLayer = window.dataLayer || [];
+
+        function gtag() {
+            dataLayer.push(arguments);
+        }
+        gtag('js', new Date());
+
+        gtag('config', 'G-CCQS82S888');
     </script>
-    -->
 </head>
 
 <body<?= $isAdminPage ? ' class="admin-page no-ads"' : '' ?>>

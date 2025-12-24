@@ -1,2 +1,12 @@
 RewriteEngine On
+
+# WWW'li versiyonu zorunlu yap
+RewriteCond %{HTTP_HOST} !^www\. [NC]
+RewriteRule ^(.*)$ https://www.%{HTTP_HOST}/$1 [R=301,L]
+
+# ads.txt'yi rewrite dışında tut
+RewriteRule ^ads\.txt$ - [L]
+
+# Public dizinine yönlendir (URL'de public göstermeden)
+RewriteCond %{REQUEST_URI} !^/public/
 RewriteRule ^(.*)$ public/$1 [L]

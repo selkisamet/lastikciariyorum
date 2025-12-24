@@ -36,6 +36,9 @@ php_value post_max_size 5M
 # Dizin listelemeyi kapat
 Options -Indexes
 
+# Sitemap.xml'i sitemap.php'ye yönlendir
+RewriteRule ^sitemap\.xml$ sitemap.php [L]
+
 # Redirect to index.php if not a file or directory
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d

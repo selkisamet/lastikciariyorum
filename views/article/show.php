@@ -22,8 +22,6 @@ ob_start();
 
     <div class="article-meta-bar">
         <span class="meta-item">📍 <?= htmlspecialchars($city['name']) ?><?= $district ? ' / ' . htmlspecialchars($district['name']) : '' ?></span>
-        <span class="meta-item">👁 <?= $article['view_count'] ?> görüntülenme</span>
-        <span class="meta-item">📅 <?= date('d.m.Y', strtotime($article['created_at'])) ?></span>
     </div>
 
     <div class="article-body">

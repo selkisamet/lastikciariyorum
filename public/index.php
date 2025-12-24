@@ -211,6 +211,11 @@ $router->get('/admin/firma-import-sonuc', function () {
     $controller->companyImportResult();
 });
 
+$router->get('/admin/firma-import-ornek-indir', function () {
+    $controller = new AdminController();
+    $controller->downloadExampleExcel();
+});
+
 $router->get('/admin/makaleler', function () {
     $controller = new AdminController();
     $controller->articles();
@@ -239,6 +244,38 @@ $router->post('/admin/makale-duzenle/{id}', function ($id) {
 $router->post('/admin/makale-sil/{id}', function ($id) {
     $controller = new AdminController();
     $controller->deleteArticle($id);
+});
+
+// City (Şehir) management routes
+$router->get('/admin/sehirler', function () {
+    $controller = new AdminController();
+    $controller->cities();
+});
+
+$router->get('/admin/sehir-duzenle/{id}', function ($id) {
+    $controller = new AdminController();
+    $controller->editCityForm($id);
+});
+
+$router->post('/admin/sehir-duzenle/{id}', function ($id) {
+    $controller = new AdminController();
+    $controller->updateCity($id);
+});
+
+// District (İlçe) management routes
+$router->get('/admin/ilceler', function () {
+    $controller = new AdminController();
+    $controller->districts();
+});
+
+$router->get('/admin/ilce-duzenle/{id}', function ($id) {
+    $controller = new AdminController();
+    $controller->editDistrictForm($id);
+});
+
+$router->post('/admin/ilce-duzenle/{id}', function ($id) {
+    $controller = new AdminController();
+    $controller->updateDistrict($id);
 });
 
 $router->get('/admin/silme-talepleri', function () {

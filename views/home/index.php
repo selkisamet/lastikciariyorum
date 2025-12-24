@@ -34,38 +34,37 @@
 </section>
 
 <?php if (!empty($latestArticles)): ?>
-<section class="articles-section">
-    <div class="container">
-        <h2 class="section-title">Son Makaleler</h2>
+    <section class="articles-section">
+        <div class="container">
+            <h2 class="section-title">Son Makaleler</h2>
 
-        <div class="articles-grid">
-            <?php foreach ($latestArticles as $article): ?>
-                <?php $articleUrl = $article['city_slug'] . ($article['district_slug'] ? '/' . $article['district_slug'] : '') . '/' . $article['slug']; ?>
-                <a href="<?= url($articleUrl) ?>" class="article-card">
-                    <?php if ($article['featured_image']): ?>
-                        <img src="<?= asset('uploads/' . $article['featured_image']) ?>" alt="<?= htmlspecialchars($article['title']) ?>" class="article-image" loading="lazy">
-                    <?php endif; ?>
-
-                    <div class="article-content">
-                        <div class="article-meta">
-                            <span class="article-location"><?= htmlspecialchars($article['city_name']) ?><?= $article['district_name'] ? ' / ' . htmlspecialchars($article['district_name']) : '' ?></span>
-                        </div>
-
-                        <h3 class="article-title"><?= htmlspecialchars($article['title']) ?></h3>
-
-                        <?php if ($article['excerpt']): ?>
-                            <p class="article-excerpt"><?= htmlspecialchars($article['excerpt']) ?></p>
+            <div class="articles-grid">
+                <?php foreach ($latestArticles as $article): ?>
+                    <?php $articleUrl = $article['city_slug'] . ($article['district_slug'] ? '/' . $article['district_slug'] : '') . '/' . $article['slug']; ?>
+                    <a href="<?= url($articleUrl) ?>" class="article-card">
+                        <?php if ($article['featured_image']): ?>
+                            <img src="<?= asset('uploads/' . $article['featured_image']) ?>" alt="<?= htmlspecialchars($article['title']) ?>" class="article-image" loading="lazy">
                         <?php endif; ?>
 
-                        <div class="article-footer">
-                            <span class="article-views">👁 <?= $article['view_count'] ?> görüntülenme</span>
+                        <div class="article-content">
+                            <div class="article-meta">
+                                <span class="article-location"><?= htmlspecialchars($article['city_name']) ?><?= $article['district_name'] ? ' / ' . htmlspecialchars($article['district_name']) : '' ?></span>
+                            </div>
+
+                            <h3 class="article-title"><?= htmlspecialchars($article['title']) ?></h3>
+
+                            <?php
+                            $excerpt = getArticleExcerpt($article['excerpt'], $article['content']);
+                            if ($excerpt):
+                            ?>
+                                <p class="article-excerpt"><?= htmlspecialchars($excerpt) ?></p>
+                            <?php endif; ?>
                         </div>
-                    </div>
-                </a>
-            <?php endforeach; ?>
+                    </a>
+                <?php endforeach; ?>
+            </div>
         </div>
-    </div>
-</section>
+    </section>
 <?php endif; ?>
 
 <section class="cta-section">
@@ -73,7 +72,7 @@
         <div class="cta-content">
             <h2 class="cta-title">Lastik Tamirhanenizi Ekleyin</h2>
             <p class="cta-description">İşletmenizi binlerce potansiyel müşteriye ulaştırın</p>
-            <a href="<?= url('firma-ekle') ?>" class="btn btn-large">Hemen Ekle</a>
+            <a href="<?= url('firma-ekle') ?>" class="btn btn-large text-light">Hemen Ekle</a>
         </div>
     </div>
 </section>
