@@ -207,6 +207,7 @@ body {
 }
 
 .btn-primary:hover {
+    color: var(--text-white) !important;
     background: var(--primary-hover);
 }
 
@@ -227,6 +228,7 @@ body {
 }
 
 .btn-info:hover {
+    color: var(--text-white) !important;
     background: #138496;
     border-color: #117a8b;
 }
@@ -2006,7 +2008,7 @@ select.form-input:focus {
 
 /* Action Buttons */
 .action-buttons {
-    display: flex;
+    /* display: flex; */
     gap: 0.5rem;
     align-items: center;
 }
