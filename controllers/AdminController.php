@@ -1133,6 +1133,13 @@ class AdminController extends Controller
     {
         $cities = $this->cityModel->getAllWithCounts();
 
+        // For each city, check if HUB article exists
+        foreach ($cities as &$city) {
+            $hubArticle = $this->articleModel->getCityHubArticle($city['id']);
+            $city['has_article'] = !empty($hubArticle);
+            $city['article_id'] = $hubArticle['id'] ?? null;
+        }
+
         $this->view('admin.cities', [
             'pageTitle' => 'Şehir Yönetimi',
             'cities' => $cities,
@@ -1140,11 +1147,11 @@ class AdminController extends Controller
     }
 
     /**
-     * HUB SEO: Edit City Form
+     * Simplified: Edit City Form (name & slug only)
      */
     public function editCityForm($id)
     {
-        $city = $this->cityModel->getWithH2Sections($id);
+        $city = $this->cityModel->findBy('id', $id);
 
         if (!$city) {
             $_SESSION['error'] = 'Şehir bulunamadı.';
@@ -1152,18 +1159,18 @@ class AdminController extends Controller
             return;
         }
 
-        // Get articles for this city for H2 section linking
-        $articles = $this->articleModel->getByCity($id, null);
+        // Get HUB article for this city
+        $hubArticle = $this->articleModel->getCityHubArticle($id);
 
         $this->view('admin.city-edit', [
             'pageTitle' => 'Şehir Düzenle - ' . $city['name'],
             'city' => $city,
-            'articles' => $articles,
+            'hubArticle' => $hubArticle,
         ]);
     }
 
     /**
-     * HUB SEO: Update City
+     * Simplified: Update City (name & slug only)
      */
     public function updateCity($id)
     {
@@ -1180,32 +1187,19 @@ class AdminController extends Controller
             return;
         }
 
-        // Process H2 sections from form
-        $h2Sections = [];
-        if (isset($_POST['h2_titles']) && is_array($_POST['h2_titles'])) {
-            foreach ($_POST['h2_titles'] as $index => $title) {
-                if (!empty($title)) {
-                    $h2Sections[] = [
-                        'title' => trim($title),
-                        'description' => trim($_POST['h2_descriptions'][$index] ?? ''),
-                        'linked_article_id' => !empty($_POST['h2_article_ids'][$index])
-                            ? (int)$_POST['h2_article_ids'][$index]
-                            : null,
-                    ];
-                }
-            }
-        }
-
+        // Only update name and slug
         $data = [
-            'h1' => $_POST['h1'] ?? null,
-            'content' => $_POST['content'] ?? null,
-            'meta_title' => $_POST['meta_title'] ?? null,
-            'meta_description' => $_POST['meta_description'] ?? null,
-            'page_description' => $_POST['page_description'] ?? null,
-            'h2_sections' => $h2Sections,
+            'name' => trim($_POST['name'] ?? ''),
+            'slug' => trim($_POST['slug'] ?? ''),
         ];
 
-        $this->cityModel->saveWithH2Sections($id, $data);
+        if (empty($data['name']) || empty($data['slug'])) {
+            $_SESSION['error'] = 'Şehir adı ve slug zorunludur.';
+            $this->redirect('/admin/sehir-duzenle/' . $id);
+            return;
+        }
+
+        $this->cityModel->update($id, $data);
 
         $_SESSION['success'] = 'Şehir bilgileri başarıyla güncellendi.';
         $this->redirect('/admin/sehirler');
@@ -1218,6 +1212,13 @@ class AdminController extends Controller
     {
         $districts = $this->districtModel->getAllWithCounts();
 
+        // For each district, check if HUB article exists
+        foreach ($districts as &$district) {
+            $hubArticle = $this->articleModel->getDistrictHubArticle($district['id']);
+            $district['has_article'] = !empty($hubArticle);
+            $district['article_id'] = $hubArticle['id'] ?? null;
+        }
+
         $this->view('admin.districts', [
             'pageTitle' => 'İlçe Yönetimi',
             'districts' => $districts,
@@ -1225,11 +1226,11 @@ class AdminController extends Controller
     }
 
     /**
-     * HUB SEO: Edit District Form
+     * Simplified: Edit District Form (name & slug only)
      */
     public function editDistrictForm($id)
     {
-        $district = $this->districtModel->getWithH2Sections($id);
+        $district = $this->districtModel->findBy('id', $id);
 
         if (!$district) {
             $_SESSION['error'] = 'İlçe bulunamadı.';
@@ -1240,19 +1241,19 @@ class AdminController extends Controller
         // Get city info
         $city = $this->cityModel->findBy('id', $district['city_id']);
 
-        // Get articles for this district for H2 section linking
-        $articles = $this->articleModel->getByDistrict($id, null);
+        // Get HUB article for this district
+        $hubArticle = $this->articleModel->getDistrictHubArticle($id);
 
         $this->view('admin.district-edit', [
             'pageTitle' => 'İlçe Düzenle - ' . $district['name'],
             'district' => $district,
             'city' => $city,
-            'articles' => $articles,
+            'hubArticle' => $hubArticle,
         ]);
     }
 
     /**
-     * HUB SEO: Update District
+     * Simplified: Update District (name & slug only)
      */
     public function updateDistrict($id)
     {
@@ -1261,7 +1262,7 @@ class AdminController extends Controller
             return;
         }
 
-        $district = $this->districtModel->getWithH2Sections($id);
+        $district = $this->districtModel->findBy('id', $id);
 
         if (!$district) {
             $_SESSION['error'] = 'İlçe bulunamadı.';
@@ -1269,32 +1270,19 @@ class AdminController extends Controller
             return;
         }
 
-        // Process H2 sections from form
-        $h2Sections = [];
-        if (isset($_POST['h2_titles']) && is_array($_POST['h2_titles'])) {
-            foreach ($_POST['h2_titles'] as $index => $title) {
-                if (!empty($title)) {
-                    $h2Sections[] = [
-                        'title' => trim($title),
-                        'description' => trim($_POST['h2_descriptions'][$index] ?? ''),
-                        'linked_article_id' => !empty($_POST['h2_article_ids'][$index])
-                            ? (int)$_POST['h2_article_ids'][$index]
-                            : null,
-                    ];
-                }
-            }
-        }
-
+        // Only update name and slug
         $data = [
-            'h1' => $_POST['h1'] ?? null,
-            'content' => $_POST['content'] ?? null,
-            'meta_title' => $_POST['meta_title'] ?? null,
-            'meta_description' => $_POST['meta_description'] ?? null,
-            'page_description' => $_POST['page_description'] ?? null,
-            'h2_sections' => $h2Sections,
+            'name' => trim($_POST['name'] ?? ''),
+            'slug' => trim($_POST['slug'] ?? ''),
         ];
 
-        $this->districtModel->saveWithH2Sections($id, $data);
+        if (empty($data['name']) || empty($data['slug'])) {
+            $_SESSION['error'] = 'İlçe adı ve slug zorunludur.';
+            $this->redirect('/admin/ilce-duzenle/' . $id);
+            return;
+        }
+
+        $this->districtModel->update($id, $data);
 
         $_SESSION['success'] = 'İlçe bilgileri başarıyla güncellendi.';
         $this->redirect('/admin/ilceler');
