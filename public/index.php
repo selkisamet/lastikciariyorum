@@ -370,6 +370,11 @@ $router->post('/admin/ai-test-baglanti', function () {
     $controller->testAIConnection();
 });
 
+$router->get('/admin/generate-keyword-suggestions', function () {
+    $controller = new AdminController();
+    $controller->generateKeywordSuggestions();
+});
+
 // API routes
 $router->get('/api/districts/{city_id}', function ($cityId) {
     // Make $cityId available to the required file

@@ -80,77 +80,170 @@ class AIService
     }
 
     /**
-     * Prompt builder (Multi-keyword support with primary keyword)
+     * Prompt builder (Professional Local SEO for listing pages)
      */
     private function buildPrompt($location, $keywords, $wordCount, $city, $district, $primaryKeyword = null)
     {
-        $districtInfo = $district ? "İlçe: {$district}" : "İl geneli";
         $locationName = $district ?? $city;
+        $districtInfo = $district ? "İlçe: {$district}" : "İl geneli";
 
-        // Keyword listesini formatla
+        // Destekleyici keyword listesi
         $keywordList = implode("\n- ", $keywords);
 
-        // Her keyword için hedef kelime sayısını hesapla
-        $keywordCount = count($keywords);
-        $wordsPerSection = (int)($wordCount / ($keywordCount + 2)); // +2 = giriş + sonuç
-
-        // Primary keyword section
-        $primaryKeywordSection = '';
-        if ($primaryKeyword) {
-            $primaryKeywordSection = <<<PRIMARY
-
-ANA ANAHTAR KELİME: {$primaryKeyword}
-⚠️ ZORUNLU KURALLAR:
-1. H1 başlığı MUTLAKA şu formatta olmalı: "{$locationName} {$primaryKeyword}"
-2. İlk paragrafta MUTLAKA "{$locationName} {$primaryKeyword}" geçmeli
-3. URL slug'ında MUTLAKA "{$primaryKeyword}" kelimesi bulunmalı
-4. Ana anahtar kelime içerik boyunca dengeli şekilde kullanılmalı (keyword density: %2-3)
-PRIMARY;
-        }
-
         return <<<PROMPT
-Sen SEO uzmanı bir içerik yazarısın. Lastik servisleri hakkında UZUN ve DETAYLI bir HUB makalesi yazacaksın.
+Sen Türkiye'de yerel hizmet siteleri (lastikçi, oto servis vb.) üzerine uzmanlaşmış, Google Local SEO, Programmatic SEO ve Helpful Content sistemlerini bilen üst düzey bir SEO stratejisti ve profesyonel içerik yazarısın.
 
-KONUM: {$location}
+Bu içerik:
+- Blog yazısı DEĞİLDİR
+- Haber DEĞİLDİR
+- Satış sayfası DEĞİLDİR
+
+Bu bir LASTİKÇİ FİRMA LİSTELEME SAYFASININ ÜST İÇERİĞİDİR.
+Amaç: Kullanıcıyı doğru bilgilendirmek ve aşağıda yer alan firma listesine mantıklı ve güvenli şekilde yönlendirmektir.
+
+---
+
+## 1️⃣ KONUM BİLGİSİ
+
+- İl: {$city}
+- İlçe: {$district}
 {$districtInfo}
-{$primaryKeywordSection}
 
-DİĞER ANAHTAR KELİMELER (HEPSİNİ TEK MAKALEDE DOĞAL ŞEKİLDE KULLAN):
+Kurallar:
+- İlçe doluysa → içerik TAMAMEN ilçe odaklıdır (İl adı sadece bağlam için 1-2 kez geçer)
+- İlçe boşsa → içerik il geneli içindir (İlçeler sadece örnek olarak anılabilir)
+
+---
+
+## 2️⃣ PRIMARY KEYWORD
+
+Primary Keyword: {$primaryKeyword}
+
+KULLANIM:
+- H1 → "{$locationName} {$primaryKeyword}"
+- İlk paragraf → 1 kez
+- Tüm içerikte toplam → 6-8 kez (doğal, keyword stuffing YOK)
+
+---
+
+## 3️⃣ DESTEKLEYİCİ KAVRAMLAR (ZORLAMADAN)
+
+Aşağıdaki terimleri doğal şekilde kullan:
 - {$keywordList}
 
-HEDEF KELİME SAYISI: {$wordCount} kelime (UZUN İÇERİK)
+Kurallar:
+- Her biri 1-3 kez
+- Aynı paragrafta en fazla 1 anahtar ifade
+- Gereksiz H2 açma ZORUNLU DEĞİL
 
-YAZIŞ KURALLARI:
-1. Bu bir HUB sayfası - kullanıcıya MAKSIMUM değer sağla
-2. TÜM anahtar kelimeleri organik şekilde kullan (keyword stuffing YAPMA)
-3. Her keyword için ayrı H2 bölümü oluştur
-4. Yerel SEO için konum adını doğal şekilde yerleştir
-5. Kullanıcıya pratik, faydalı bilgiler ver (fiyatlar, saatler, hizmetler)
-6. Paragraflar kısa ve okunaklı olmalı
-7. HTML formatında yaz (p, h2, h3, strong, ul, li etiketleri kullan)
-8. Türkçe dil kurallarına uy
+---
 
-MAKALE YAPISI (Her bölüm ~{$wordsPerSection} kelime):
-1. GİRİŞ (~{$wordsPerSection} kelime): {$location} bölgesinde lastik hizmetlerine genel bakış
-2. KEYWORD BÖLÜMÜ 1 - H2: {$keywords[0]} hakkında detaylı bilgi
-3. KEYWORD BÖLÜMÜ 2 - H2: {$keywords[1]} hakkında detaylı bilgi
-4. KEYWORD BÖLÜMÜ 3 - H2: {$keywords[2]} hakkında detaylı bilgi
-5. KEYWORD BÖLÜMÜ 4 - H2: {$keywords[3]} hakkında detaylı bilgi
-6. KEYWORD BÖLÜMÜ 5 - H2: {$keywords[4]} hakkında detaylı bilgi
-7. SONUÇ (~{$wordsPerSection} kelime): Özet ve harekete geçirici mesaj
+## 4️⃣ KESİN GUARDRAIL (ÇOK ÖNEMLİ)
 
-SEO İPUCLARI:
-- Her H2 başlığında anahtar kelimeleri kullan
-- İçerik bilgilendirici ve derinlemesine olmalı
-- "Thin content" olmamalı - kullanıcıya DEĞER kat
-- Duplicate content riskinden kaçın - özgün yaz
+AŞAĞIDAKILER KESİNLİKLE YASAK:
 
-YANIT FORMATI (JSON):
-Yanıtını SADECE şu JSON formatında ver, başka hiçbir şey yazma:
+❌ Keyword stuffing
+❌ Aynı cümlede il + ilçe + keyword tekrarları
+❌ "En iyi / en ucuz / garantili" gibi iddialar
+❌ Fiyat, kampanya, firma adı, yorum uydurma
+❌ Blogvari uzun girişler
+❌ Satış CTA'ları
+
+Dil:
+- Bilgilendirici
+- Tarafsız
+- Güven veren
+- Abartısız
+
+---
+
+## 5️⃣ UX + SEO BİRLEŞİK YAPI
+
+Bu içerik:
+- Kullanıcının arama niyetini açıklar
+- Neden firma listesine bakması gerektiğini mantıkla hazırlar
+
+Akış:
+1. Kullanıcı ihtiyacı
+2. Hizmet türleri ve senaryolar
+3. Doğru lastikçi seçimi
+4. Firma listesine geçiş hissi
+
+Direkt çağrı yok. "Liste aşağıda" hissi doğal verilir.
+
+---
+
+## 6️⃣ ZORUNLU SAYFA İSKELETİ
+
+H1: {$locationName} {$primaryKeyword}
+
+GİRİŞ:
+- Bölgedeki lastik ihtiyacı
+- Acil durumlara kısa vurgu
+
+H2: {$locationName} Bölgesinde Lastikçi Hizmetleri
+
+H2: Sunulan Lastik Hizmetleri
+  (ul / li listesi)
+
+H2: Lastikçi Seçerken Nelere Dikkat Edilmeli
+
+H2: Sık Sorulan Sorular
+  • 3-5 kısa soru & net cevap
+
+KAPANIŞ:
+- Kısa özet
+- Firma listesinin devamında olduğu hissi
+
+---
+
+## 7️⃣ MİKRO LOKAL GERÇEKLİK
+
+İçerikte 1-2 kısa cümleyle:
+- Trafik yoğunluğu
+- Yolda kalma riski
+- Ana yollar / sanayi bölgeleri
+
+Abartı YOK.
+
+---
+
+## 8️⃣ HTML KURALLARI
+
+SADECE şu etiketler: h1, h2, h3, p, strong, ul, li
+
+❌ div
+❌ span
+❌ markdown
+❌ stil / class
+
+---
+
+## 9️⃣ SEO META
+
+Meta Title:
+- 50-60 karakter
+- Primary keyword içerir
+
+Meta Description:
+- 150-160 karakter
+- Konum + hizmet + güven hissi
+
+---
+
+## 🔟 HEDEF KELİME SAYISI
+
+Toplam: {$wordCount} kelime
+
+---
+
+## ÇIKTI (SADECE JSON)
+
+JSON DIŞINDA HİÇBİR ŞEY YAZMA.
 
 {
-  "title": "Makale başlığı (60-70 karakter, ana anahtar kelime içermeli)",
-  "content": "HTML formatında makale içeriği (~{$wordCount} kelime)",
+  "title": "H1 başlığı (primary keyword içermeli)",
+  "content": "HTML formatında makale içeriği",
   "excerpt": "150-200 karakterlik kısa özet",
   "meta_title": "SEO meta title (50-60 karakter)",
   "meta_description": "SEO meta description (150-160 karakter)"
@@ -163,11 +256,11 @@ PROMPT;
     /**
      * API'ye istek gönder
      */
-    private function sendRequest($prompt)
+    private function sendRequest($prompt, $maxTokens = null)
     {
         $data = [
             'model' => $this->model,
-            'max_tokens' => $this->maxTokens,
+            'max_tokens' => $maxTokens ?? $this->maxTokens,
             'messages' => [
                 [
                     'role' => 'user',
@@ -292,7 +385,7 @@ PROMPT;
      * @param int $wordCount Hedef kelime sayısı (varsayılan: 1500)
      * @return array Başarı/hata listesi
      */
-    public function generateBulkArticles($locations, $keywordTemplates = [], $wordCount = 1500)
+    public function generateBulkArticles($locations, $primaryKeyword, $supportingKeywords = [], $wordCount = 1500)
     {
         $results = [];
 
@@ -301,7 +394,8 @@ PROMPT;
                 $params = [
                     'city' => $location['city_name'],
                     'district' => $location['district_name'] ?? null,
-                    'keywords' => $keywordTemplates, // Empty = use template
+                    'primary_keyword' => $primaryKeyword,
+                    'keywords' => $supportingKeywords, // Supporting keywords (can be empty)
                     'word_count' => $wordCount
                 ];
 
@@ -333,49 +427,64 @@ PROMPT;
      *
      * @param array $city City data
      * @param array|null $district District data (optional)
+     * @param string $primaryKeyword Primary keyword to exclude from suggestions
      * @return array Array of 10 keyword suggestions
      */
-    public function generateKeywordSuggestions($city, $district = null)
+    public function generateKeywordSuggestions($city, $district = null, $primaryKeyword = 'lastikçi')
     {
         $location = $district ? "{$district['name']}, {$city['name']}" : $city['name'];
         $locationName = $district ? $district['name'] : $city['name'];
 
         $prompt = <<<PROMPT
-Lastik servisleri için SEO anahtar kelime önerileri üret.
+Lastik servisleri için DESTEKLEYİCİ SEO anahtar kelime önerileri üret.
 
 KONUM: {$location}
 
 TALİMAT:
-Lastik servisleri/tamiri için {$locationName} bölgesine özel 10 adet SEO-uyumlu anahtar kelime öner.
+Lastik servisleri/tamiri için {$locationName} bölgesine özel 10 adet DESTEKLEYİCİ anahtar kelime öner.
+
+ÖNEMLİ:
+- "{$primaryKeyword}" kelimesi ANA ANAHTAR KELİME olacak (BUNU ÖNERME!)
+- Sadece DESTEKLEYICI/NİTELEYİCİ kelimeler öner
 
 KURALLAR:
 1. Her keyword tek başına anlamlı olmalı (lokasyon adı EKLEME, sadece keyword'ü yaz)
 2. Sadece keyword'leri döndür, açıklama yapma
 3. Her satıra bir keyword
 4. Türkçe karakterleri doğru kullan (ı, ş, ğ, ü, ö, ç)
-5. Gerçekçi ve arama hacmi yüksek kelimeler seç
+5. "{$primaryKeyword}" kelimesini ASLA kullanma (bu ana keyword olacak)
+6. Gerçekçi ve arama hacmi yüksek kelimeler seç
 
-Örnek format:
-lastikçi
-7/24 lastikçi
-mobil lastikçi
-açık lastikçi
-lastik tamiri
+Doğru format örnekleri (her satırda bir tane):
+7/24 lastik servisi
+mobil lastik tamiri
+açık lastik tamircisi
 lastik değişimi
-lastik patlaması
-oto lastik
-araç lastik
-lastik bakımı
+lastik patlaması yardımı
+oto lastik bakımı
+araç lastik tamiri
+yol yardım lastik
+acil lastik tamiri
+lastik hava basıncı kontrolü
 
-SADECE 10 KEYWORD DÖNDÜR (her satırda bir tane):
+SADECE 10 DESTEKLEYİCİ KEYWORD DÖNDÜR (her satırda bir tane):
 PROMPT;
 
         try {
             $response = $this->sendRequest($prompt, 500); // Short response
 
+            // Parse JSON response to get text content
+            $data = json_decode($response, true);
+
+            if (!isset($data['content'][0]['text'])) {
+                throw new Exception('API yanıtı beklenmeyen formatta');
+            }
+
+            $textContent = $data['content'][0]['text'];
+
             // Extract keywords from response
             $keywords = array_filter(
-                array_map('trim', explode("\n", trim($response))),
+                array_map('trim', explode("\n", trim($textContent))),
                 function($line) {
                     return !empty($line) && !str_starts_with($line, '#') && !str_starts_with($line, '-');
                 }

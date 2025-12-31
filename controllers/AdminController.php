@@ -1321,9 +1321,10 @@ class AdminController extends Controller
             $districtId = !empty($_POST['district_id']) ? $_POST['district_id'] : null;
             $wordCount = (int)($_POST['word_count'] ?? 1500); // Increased default to 1500
             $primaryKeyword = trim($_POST['primary_keyword'] ?? '');
+            $autoPublish = isset($_POST['auto_publish']);
 
-            // Manual keywords: one per line
-            $keywordsInput = $_POST['keywords_manual'] ?? 'lastikçi';
+            // Manual keywords: one per line (optional)
+            $keywordsInput = $_POST['keywords_manual'] ?? '';
             $keywords = array_filter(array_map('trim', explode("\n", $keywordsInput)));
 
             if (!$cityId) {
@@ -1334,9 +1335,7 @@ class AdminController extends Controller
                 throw new Exception('Lütfen bir ana anahtar kelime girin.');
             }
 
-            if (empty($keywords)) {
-                throw new Exception('Lütfen en az bir diğer anahtar kelime girin.');
-            }
+            // Keywords artık opsiyonel - boş array kabul edilir
 
             // Şehir ve ilçe bilgilerini getir
             $city = $this->cityModel->find($cityId);
@@ -1390,21 +1389,43 @@ class AdminController extends Controller
             // Slug üret
             $slug = $this->generateSlug($articleData['title']);
 
-            // Session'a kaydet (preview için)
-            $_SESSION['ai_generated_article'] = [
-                'city_id' => $cityId,
-                'district_id' => $districtId,
-                'title' => $articleData['title'],
-                'slug' => $slug,
-                'content' => $articleData['content'],
-                'excerpt' => $articleData['excerpt'],
-                'meta_title' => $articleData['meta_title'],
-                'meta_description' => $articleData['meta_description'],
-                'keywords' => $keywords, // Store keywords array
-            ];
+            // Otomatik yayınla veya preview
+            if ($autoPublish) {
+                // Direkt yayınla (toplu üretim gibi)
+                $data = [
+                    'city_id' => $cityId,
+                    'district_id' => $districtId,
+                    'title' => $articleData['title'],
+                    'slug' => $slug,
+                    'content' => $articleData['content'],
+                    'excerpt' => $articleData['excerpt'],
+                    'meta_title' => $articleData['meta_title'],
+                    'meta_description' => $articleData['meta_description'],
+                    'author_id' => $_SESSION['user_id'],
+                    'is_published' => 1,
+                    'published_at' => date('Y-m-d H:i:s'),
+                ];
 
-            $_SESSION['success'] = 'Makale başarıyla oluşturuldu! Aşağıdan önizleyebilir ve kaydedebilirsiniz.';
-            $this->redirect('/admin/ai-makale-onizle');
+                $this->articleModel->create($data);
+                $_SESSION['success'] = 'Makale başarıyla oluşturuldu ve yayınlandı!';
+                $this->redirect('/admin/makaleler');
+            } else {
+                // Session'a kaydet (preview için)
+                $_SESSION['ai_generated_article'] = [
+                    'city_id' => $cityId,
+                    'district_id' => $districtId,
+                    'title' => $articleData['title'],
+                    'slug' => $slug,
+                    'content' => $articleData['content'],
+                    'excerpt' => $articleData['excerpt'],
+                    'meta_title' => $articleData['meta_title'],
+                    'meta_description' => $articleData['meta_description'],
+                    'keywords' => $keywords, // Store keywords array
+                ];
+
+                $_SESSION['success'] = 'Makale başarıyla oluşturuldu! Aşağıdan önizleyebilir ve kaydedebilirsiniz.';
+                $this->redirect('/admin/ai-makale-onizle');
+            }
 
         } catch (Exception $e) {
             $_SESSION['error'] = 'Makale oluşturulurken hata: ' . $e->getMessage();
@@ -1497,13 +1518,31 @@ class AdminController extends Controller
             $cityIds = $_POST['city_ids'] ?? [];
             $districtOption = $_POST['district_option'] ?? 'all'; // all, selected, none
             $selectedDistrictIds = $_POST['district_ids'] ?? [];
-            $keyword = $_POST['keyword'] ?? 'lastik servisi';
+            $primaryKeyword = trim($_POST['primary_keyword'] ?? '');
+            $keywordsManual = trim($_POST['keywords_manual'] ?? '');
             $wordCount = (int)($_POST['word_count'] ?? 800);
             $autoPublish = isset($_POST['auto_publish']);
 
             if (empty($cityIds)) {
                 throw new Exception('Lütfen en az bir şehir seçin.');
             }
+
+            if (empty($primaryKeyword)) {
+                throw new Exception('Lütfen ana anahtar kelime girin.');
+            }
+
+            // Parse keywords
+            $keywords = [];
+            if (!empty($keywordsManual)) {
+                $keywords = array_filter(
+                    array_map('trim', explode("\n", $keywordsManual)),
+                    function($line) {
+                        return !empty($line);
+                    }
+                );
+            }
+            // If no supporting keywords provided, use empty array
+            $keywords = array_values($keywords);
 
             // Locations listesi oluştur
             $locations = [];
@@ -1553,7 +1592,7 @@ class AdminController extends Controller
 
             // AI Service ile toplu üretim
             $aiService = new AIService();
-            $results = $aiService->generateBulkArticles($locations, $keyword, $wordCount);
+            $results = $aiService->generateBulkArticles($locations, $primaryKeyword, $keywords, $wordCount);
 
             // Başarılı makaleleri kaydet
             $successCount = 0;
@@ -1706,9 +1745,15 @@ class AdminController extends Controller
         try {
             $cityId = $_GET['city_id'] ?? null;
             $districtId = $_GET['district_id'] ?? null;
+            $primaryKeyword = trim($_GET['primary_keyword'] ?? '');
 
             if (!$cityId) {
                 echo json_encode(['success' => false, 'error' => 'Şehir ID gereklidir.']);
+                return;
+            }
+
+            if (empty($primaryKeyword)) {
+                echo json_encode(['success' => false, 'error' => 'Ana anahtar kelime gereklidir.']);
                 return;
             }
 
@@ -1723,9 +1768,9 @@ class AdminController extends Controller
                 $district = $this->districtModel->find($districtId);
             }
 
-            // Generate keyword suggestions using AI
+            // Generate keyword suggestions using AI (exclude primary keyword)
             $aiService = new AIService();
-            $keywords = $aiService->generateKeywordSuggestions($city, $district);
+            $keywords = $aiService->generateKeywordSuggestions($city, $district, $primaryKeyword);
 
             echo json_encode(['success' => true, 'keywords' => $keywords]);
         } catch (Exception $e) {
