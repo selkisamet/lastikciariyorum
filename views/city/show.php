@@ -48,15 +48,6 @@ ob_start();
                 <div class="hub-article-content">
                     <?= $hubArticle['content'] ?>
                 </div>
-
-                <?php if (!empty($hubArticle['view_count'])): ?>
-                    <div class="hub-article-meta">
-                        <span class="meta-item">👁️ <?= number_format($hubArticle['view_count']) ?> görüntülenme</span>
-                        <?php if (!empty($hubArticle['published_at'])): ?>
-                            <span class="meta-item">📅 <?= date('d.m.Y', strtotime($hubArticle['published_at'])) ?></span>
-                        <?php endif; ?>
-                    </div>
-                <?php endif; ?>
             </article>
         </div>
     </section>

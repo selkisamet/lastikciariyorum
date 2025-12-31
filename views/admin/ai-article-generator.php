@@ -49,11 +49,26 @@
                         </div>
                     </div>
 
-                    <!-- HUB Architecture: Manual keywords only -->
+                    <!-- Ana Anahtar Kelime -->
                     <div class="form-group">
-                        <label for="keywords_manual">Anahtar Kelimeler (Her satıra bir tane) <span class="required">*</span></label>
-                        <textarea name="keywords_manual" id="keywords_manual" class="form-input" rows="5" placeholder="lastikçi&#10;7/24 lastikçi&#10;mobil lastikçi&#10;açık lastikçi&#10;lastik tamiri" required></textarea>
-                        <small class="form-help">Lokasyon adı otomatik eklenecektir. Örn: "lastikçi" → "Sultanbeyli lastikçi"</small>
+                        <label for="primary_keyword">Ana Anahtar Kelime <span class="required">*</span></label>
+                        <input type="text" name="primary_keyword" id="primary_keyword" class="form-input" placeholder="Örn: lastikçi" required>
+                        <small class="form-help">H1, URL ve ilk paragrafta mutlaka kullanılacak. Lokasyon adı otomatik eklenecektir. Örn: "lastikçi" → "Sultanbeyli Lastikçi"</small>
+                    </div>
+
+                    <!-- Diğer Anahtar Kelimeler -->
+                    <div class="form-group">
+                        <label for="keywords_manual">Diğer Anahtar Kelimeler (Her satıra bir tane) <span class="required">*</span></label>
+                        <div class="keyword-actions">
+                            <button type="button" id="generateKeywords" class="btn btn-sm btn-secondary">
+                                ✨ Otomatik Keyword Önerileri Al
+                            </button>
+                            <span id="keywordLoading" style="display: none; margin-left: 10px;">
+                                <span class="spinner"></span> Öneriler alınıyor...
+                            </span>
+                        </div>
+                        <textarea name="keywords_manual" id="keywords_manual" class="form-input" rows="8" placeholder="7/24 lastikçi&#10;mobil lastikçi&#10;açık lastikçi&#10;lastik tamiri&#10;lastik değişimi&#10;lastik patlaması&#10;oto lastik&#10;araç lastik&#10;lastik bakımı" required></textarea>
+                        <small class="form-help">Lokasyon adı otomatik eklenecektir. İl/ilçe seçtikten sonra "Otomatik Keyword Önerileri Al" butonuna basarak öneri alabilirsiniz.</small>
                     </div>
                     <input type="hidden" name="keyword_option" value="manual">
 
@@ -390,6 +405,28 @@
     margin-right: 8px;
 }
 
+.keyword-actions {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+    gap: 10px;
+}
+
+.spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #007bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
 @media (max-width: 768px) {
     .form-row {
         grid-template-columns: 1fr;
@@ -504,6 +541,50 @@ document.getElementById('bulkGenerationForm').addEventListener('submit', functio
             e.preventDefault();
         }
     }
+});
+
+// Keyword auto-suggestion
+document.getElementById('generateKeywords').addEventListener('click', function() {
+    const cityId = document.getElementById('city_id').value;
+    const districtId = document.getElementById('district_id').value;
+    const loadingSpan = document.getElementById('keywordLoading');
+    const keywordsTextarea = document.getElementById('keywords_manual');
+    const button = this;
+
+    if (!cityId) {
+        alert('Lütfen önce bir il seçin.');
+        return;
+    }
+
+    // Show loading state
+    button.disabled = true;
+    loadingSpan.style.display = 'inline';
+
+    // Build URL with parameters
+    const params = new URLSearchParams({
+        city_id: cityId
+    });
+    if (districtId) {
+        params.append('district_id', districtId);
+    }
+
+    fetch(`<?= $this->getConfig('base_path') ?>/admin/generate-keyword-suggestions?${params}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.keywords) {
+                keywordsTextarea.value = data.keywords.join('\n');
+            } else {
+                alert('Keyword önerileri alınamadı: ' + (data.error || 'Bilinmeyen hata'));
+            }
+        })
+        .catch(error => {
+            console.error('Error generating keywords:', error);
+            alert('Keyword önerileri alınırken bir hata oluştu.');
+        })
+        .finally(() => {
+            button.disabled = false;
+            loadingSpan.style.display = 'none';
+        });
 });
 </script>
 

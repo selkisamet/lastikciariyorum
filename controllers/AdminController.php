@@ -1320,22 +1320,22 @@ class AdminController extends Controller
             $cityId = $_POST['city_id'] ?? null;
             $districtId = !empty($_POST['district_id']) ? $_POST['district_id'] : null;
             $wordCount = (int)($_POST['word_count'] ?? 1500); // Increased default to 1500
+            $primaryKeyword = trim($_POST['primary_keyword'] ?? '');
 
-            // Multi-keyword support: Check keyword option (template or manual)
-            $keywordOption = $_POST['keyword_option'] ?? 'template';
-
-            if ($keywordOption === 'manual') {
-                // Manual keywords: one per line
-                $keywordsInput = $_POST['keywords_manual'] ?? 'lastikçi';
-                $keywords = array_filter(array_map('trim', explode("\n", $keywordsInput)));
-            } else {
-                // Template keywords: Use standard template
-                // Will be populated with location name by AIService
-                $keywords = []; // Empty means use template
-            }
+            // Manual keywords: one per line
+            $keywordsInput = $_POST['keywords_manual'] ?? 'lastikçi';
+            $keywords = array_filter(array_map('trim', explode("\n", $keywordsInput)));
 
             if (!$cityId) {
                 throw new Exception('Lütfen bir şehir seçin.');
+            }
+
+            if (empty($primaryKeyword)) {
+                throw new Exception('Lütfen bir ana anahtar kelime girin.');
+            }
+
+            if (empty($keywords)) {
+                throw new Exception('Lütfen en az bir diğer anahtar kelime girin.');
             }
 
             // Şehir ve ilçe bilgilerini getir
@@ -1375,13 +1375,14 @@ class AdminController extends Controller
                 }
             }
 
-            // AI Service ile makale üret (multi-keyword support)
+            // AI Service ile makale üret (multi-keyword support with primary keyword)
             $aiService = new AIService();
             $params = [
                 'city' => $city['name'],
                 'district' => $district ? $district['name'] : null,
-                'keywords' => $keywords, // Array of keywords or empty for template
-                'word_count' => $wordCount
+                'keywords' => $keywords, // Array of keywords
+                'word_count' => $wordCount,
+                'primary_keyword' => $primaryKeyword
             ];
 
             $articleData = $aiService->generateArticle($params);
@@ -1696,5 +1697,39 @@ class AdminController extends Controller
         }
 
         $this->redirect('/admin/ai-ayarlar');
+    }
+
+    public function generateKeywordSuggestions()
+    {
+        header('Content-Type: application/json');
+
+        try {
+            $cityId = $_GET['city_id'] ?? null;
+            $districtId = $_GET['district_id'] ?? null;
+
+            if (!$cityId) {
+                echo json_encode(['success' => false, 'error' => 'Şehir ID gereklidir.']);
+                return;
+            }
+
+            $city = $this->cityModel->find($cityId);
+            if (!$city) {
+                echo json_encode(['success' => false, 'error' => 'Şehir bulunamadı.']);
+                return;
+            }
+
+            $district = null;
+            if ($districtId) {
+                $district = $this->districtModel->find($districtId);
+            }
+
+            // Generate keyword suggestions using AI
+            $aiService = new AIService();
+            $keywords = $aiService->generateKeywordSuggestions($city, $district);
+
+            echo json_encode(['success' => true, 'keywords' => $keywords]);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
     }
 }

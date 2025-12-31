@@ -46,6 +46,7 @@ class AIService
         $district = $params['district'] ?? null;
         $keywords = $params['keywords'] ?? [];
         $wordCount = $params['word_count'] ?? 1500;
+        $primaryKeyword = $params['primary_keyword'] ?? null;
 
         // Location string oluştur
         $location = $district ? "{$district}, {$city}" : $city;
@@ -62,8 +63,8 @@ class AIService
             ];
         }
 
-        // Prompt oluştur (multi-keyword)
-        $prompt = $this->buildPrompt($location, $keywords, $wordCount, $city, $district);
+        // Prompt oluştur (multi-keyword with primary keyword support)
+        $prompt = $this->buildPrompt($location, $keywords, $wordCount, $city, $district, $primaryKeyword);
 
         // API'ye istek gönder
         try {
@@ -79,11 +80,12 @@ class AIService
     }
 
     /**
-     * Prompt builder (Multi-keyword support)
+     * Prompt builder (Multi-keyword support with primary keyword)
      */
-    private function buildPrompt($location, $keywords, $wordCount, $city, $district)
+    private function buildPrompt($location, $keywords, $wordCount, $city, $district, $primaryKeyword = null)
     {
         $districtInfo = $district ? "İlçe: {$district}" : "İl geneli";
+        $locationName = $district ?? $city;
 
         // Keyword listesini formatla
         $keywordList = implode("\n- ", $keywords);
@@ -92,13 +94,28 @@ class AIService
         $keywordCount = count($keywords);
         $wordsPerSection = (int)($wordCount / ($keywordCount + 2)); // +2 = giriş + sonuç
 
+        // Primary keyword section
+        $primaryKeywordSection = '';
+        if ($primaryKeyword) {
+            $primaryKeywordSection = <<<PRIMARY
+
+ANA ANAHTAR KELİME: {$primaryKeyword}
+⚠️ ZORUNLU KURALLAR:
+1. H1 başlığı MUTLAKA şu formatta olmalı: "{$locationName} {$primaryKeyword}"
+2. İlk paragrafta MUTLAKA "{$locationName} {$primaryKeyword}" geçmeli
+3. URL slug'ında MUTLAKA "{$primaryKeyword}" kelimesi bulunmalı
+4. Ana anahtar kelime içerik boyunca dengeli şekilde kullanılmalı (keyword density: %2-3)
+PRIMARY;
+        }
+
         return <<<PROMPT
 Sen SEO uzmanı bir içerik yazarısın. Lastik servisleri hakkında UZUN ve DETAYLI bir HUB makalesi yazacaksın.
 
 KONUM: {$location}
 {$districtInfo}
+{$primaryKeywordSection}
 
-ANAHTAR KELİMELER (HEPSİNİ TEK MAKALEDE DOĞAL ŞEKİLDE KULLAN):
+DİĞER ANAHTAR KELİMELER (HEPSİNİ TEK MAKALEDE DOĞAL ŞEKİLDE KULLAN):
 - {$keywordList}
 
 HEDEF KELİME SAYISI: {$wordCount} kelime (UZUN İÇERİK)
@@ -309,5 +326,67 @@ PROMPT;
         }
 
         return $results;
+    }
+
+    /**
+     * Anahtar kelime önerileri üret
+     *
+     * @param array $city City data
+     * @param array|null $district District data (optional)
+     * @return array Array of 10 keyword suggestions
+     */
+    public function generateKeywordSuggestions($city, $district = null)
+    {
+        $location = $district ? "{$district['name']}, {$city['name']}" : $city['name'];
+        $locationName = $district ? $district['name'] : $city['name'];
+
+        $prompt = <<<PROMPT
+Lastik servisleri için SEO anahtar kelime önerileri üret.
+
+KONUM: {$location}
+
+TALİMAT:
+Lastik servisleri/tamiri için {$locationName} bölgesine özel 10 adet SEO-uyumlu anahtar kelime öner.
+
+KURALLAR:
+1. Her keyword tek başına anlamlı olmalı (lokasyon adı EKLEME, sadece keyword'ü yaz)
+2. Sadece keyword'leri döndür, açıklama yapma
+3. Her satıra bir keyword
+4. Türkçe karakterleri doğru kullan (ı, ş, ğ, ü, ö, ç)
+5. Gerçekçi ve arama hacmi yüksek kelimeler seç
+
+Örnek format:
+lastikçi
+7/24 lastikçi
+mobil lastikçi
+açık lastikçi
+lastik tamiri
+lastik değişimi
+lastik patlaması
+oto lastik
+araç lastik
+lastik bakımı
+
+SADECE 10 KEYWORD DÖNDÜR (her satırda bir tane):
+PROMPT;
+
+        try {
+            $response = $this->sendRequest($prompt, 500); // Short response
+
+            // Extract keywords from response
+            $keywords = array_filter(
+                array_map('trim', explode("\n", trim($response))),
+                function($line) {
+                    return !empty($line) && !str_starts_with($line, '#') && !str_starts_with($line, '-');
+                }
+            );
+
+            // Take first 10
+            $keywords = array_slice(array_values($keywords), 0, 10);
+
+            return $keywords;
+        } catch (Exception $e) {
+            throw new Exception('Keyword önerileri üretilemedi: ' . $e->getMessage());
+        }
     }
 }
