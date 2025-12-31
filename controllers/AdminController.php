@@ -6,6 +6,7 @@ require_once __DIR__ . '/../models/District.php';
 require_once __DIR__ . '/../models/Company.php';
 require_once __DIR__ . '/../models/Article.php';
 require_once __DIR__ . '/../models/DeletionRequest.php';
+require_once __DIR__ . '/../services/AIService.php';
 
 class AdminController extends Controller
 {
@@ -1132,6 +1133,13 @@ class AdminController extends Controller
     {
         $cities = $this->cityModel->getAllWithCounts();
 
+        // For each city, check if HUB article exists
+        foreach ($cities as &$city) {
+            $hubArticle = $this->articleModel->getCityHubArticle($city['id']);
+            $city['has_article'] = !empty($hubArticle);
+            $city['article_id'] = $hubArticle['id'] ?? null;
+        }
+
         $this->view('admin.cities', [
             'pageTitle' => 'Şehir Yönetimi',
             'cities' => $cities,
@@ -1139,11 +1147,11 @@ class AdminController extends Controller
     }
 
     /**
-     * HUB SEO: Edit City Form
+     * Simplified: Edit City Form (name & slug only)
      */
     public function editCityForm($id)
     {
-        $city = $this->cityModel->getWithH2Sections($id);
+        $city = $this->cityModel->findBy('id', $id);
 
         if (!$city) {
             $_SESSION['error'] = 'Şehir bulunamadı.';
@@ -1151,18 +1159,18 @@ class AdminController extends Controller
             return;
         }
 
-        // Get articles for this city for H2 section linking
-        $articles = $this->articleModel->getByCity($id, null);
+        // Get HUB article for this city
+        $hubArticle = $this->articleModel->getCityHubArticle($id);
 
         $this->view('admin.city-edit', [
             'pageTitle' => 'Şehir Düzenle - ' . $city['name'],
             'city' => $city,
-            'articles' => $articles,
+            'hubArticle' => $hubArticle,
         ]);
     }
 
     /**
-     * HUB SEO: Update City
+     * Simplified: Update City (name & slug only)
      */
     public function updateCity($id)
     {
@@ -1179,32 +1187,19 @@ class AdminController extends Controller
             return;
         }
 
-        // Process H2 sections from form
-        $h2Sections = [];
-        if (isset($_POST['h2_titles']) && is_array($_POST['h2_titles'])) {
-            foreach ($_POST['h2_titles'] as $index => $title) {
-                if (!empty($title)) {
-                    $h2Sections[] = [
-                        'title' => trim($title),
-                        'description' => trim($_POST['h2_descriptions'][$index] ?? ''),
-                        'linked_article_id' => !empty($_POST['h2_article_ids'][$index])
-                            ? (int)$_POST['h2_article_ids'][$index]
-                            : null,
-                    ];
-                }
-            }
-        }
-
+        // Only update name and slug
         $data = [
-            'h1' => $_POST['h1'] ?? null,
-            'content' => $_POST['content'] ?? null,
-            'meta_title' => $_POST['meta_title'] ?? null,
-            'meta_description' => $_POST['meta_description'] ?? null,
-            'page_description' => $_POST['page_description'] ?? null,
-            'h2_sections' => $h2Sections,
+            'name' => trim($_POST['name'] ?? ''),
+            'slug' => trim($_POST['slug'] ?? ''),
         ];
 
-        $this->cityModel->saveWithH2Sections($id, $data);
+        if (empty($data['name']) || empty($data['slug'])) {
+            $_SESSION['error'] = 'Şehir adı ve slug zorunludur.';
+            $this->redirect('/admin/sehir-duzenle/' . $id);
+            return;
+        }
+
+        $this->cityModel->update($id, $data);
 
         $_SESSION['success'] = 'Şehir bilgileri başarıyla güncellendi.';
         $this->redirect('/admin/sehirler');
@@ -1217,6 +1212,13 @@ class AdminController extends Controller
     {
         $districts = $this->districtModel->getAllWithCounts();
 
+        // For each district, check if HUB article exists
+        foreach ($districts as &$district) {
+            $hubArticle = $this->articleModel->getDistrictHubArticle($district['id']);
+            $district['has_article'] = !empty($hubArticle);
+            $district['article_id'] = $hubArticle['id'] ?? null;
+        }
+
         $this->view('admin.districts', [
             'pageTitle' => 'İlçe Yönetimi',
             'districts' => $districts,
@@ -1224,11 +1226,11 @@ class AdminController extends Controller
     }
 
     /**
-     * HUB SEO: Edit District Form
+     * Simplified: Edit District Form (name & slug only)
      */
     public function editDistrictForm($id)
     {
-        $district = $this->districtModel->getWithH2Sections($id);
+        $district = $this->districtModel->findBy('id', $id);
 
         if (!$district) {
             $_SESSION['error'] = 'İlçe bulunamadı.';
@@ -1239,19 +1241,19 @@ class AdminController extends Controller
         // Get city info
         $city = $this->cityModel->findBy('id', $district['city_id']);
 
-        // Get articles for this district for H2 section linking
-        $articles = $this->articleModel->getByDistrict($id, null);
+        // Get HUB article for this district
+        $hubArticle = $this->articleModel->getDistrictHubArticle($id);
 
         $this->view('admin.district-edit', [
             'pageTitle' => 'İlçe Düzenle - ' . $district['name'],
             'district' => $district,
             'city' => $city,
-            'articles' => $articles,
+            'hubArticle' => $hubArticle,
         ]);
     }
 
     /**
-     * HUB SEO: Update District
+     * Simplified: Update District (name & slug only)
      */
     public function updateDistrict($id)
     {
@@ -1260,7 +1262,7 @@ class AdminController extends Controller
             return;
         }
 
-        $district = $this->districtModel->getWithH2Sections($id);
+        $district = $this->districtModel->findBy('id', $id);
 
         if (!$district) {
             $_SESSION['error'] = 'İlçe bulunamadı.';
@@ -1268,34 +1270,431 @@ class AdminController extends Controller
             return;
         }
 
-        // Process H2 sections from form
-        $h2Sections = [];
-        if (isset($_POST['h2_titles']) && is_array($_POST['h2_titles'])) {
-            foreach ($_POST['h2_titles'] as $index => $title) {
-                if (!empty($title)) {
-                    $h2Sections[] = [
-                        'title' => trim($title),
-                        'description' => trim($_POST['h2_descriptions'][$index] ?? ''),
-                        'linked_article_id' => !empty($_POST['h2_article_ids'][$index])
-                            ? (int)$_POST['h2_article_ids'][$index]
-                            : null,
-                    ];
-                }
-            }
-        }
-
+        // Only update name and slug
         $data = [
-            'h1' => $_POST['h1'] ?? null,
-            'content' => $_POST['content'] ?? null,
-            'meta_title' => $_POST['meta_title'] ?? null,
-            'meta_description' => $_POST['meta_description'] ?? null,
-            'page_description' => $_POST['page_description'] ?? null,
-            'h2_sections' => $h2Sections,
+            'name' => trim($_POST['name'] ?? ''),
+            'slug' => trim($_POST['slug'] ?? ''),
         ];
 
-        $this->districtModel->saveWithH2Sections($id, $data);
+        if (empty($data['name']) || empty($data['slug'])) {
+            $_SESSION['error'] = 'İlçe adı ve slug zorunludur.';
+            $this->redirect('/admin/ilce-duzenle/' . $id);
+            return;
+        }
+
+        $this->districtModel->update($id, $data);
 
         $_SESSION['success'] = 'İlçe bilgileri başarıyla güncellendi.';
         $this->redirect('/admin/ilceler');
+    }
+
+    /**
+     * AI Makale Üretici - Form
+     */
+    public function aiArticleGeneratorForm()
+    {
+        $cities = $this->cityModel->all();
+
+        // API key kontrolü
+        $apiKeyConfigured = !empty(env('ANTHROPIC_API_KEY'));
+
+        $this->view('admin.ai-article-generator', [
+            'pageTitle' => 'AI Makale Üretici',
+            'cities' => $cities,
+            'apiKeyConfigured' => $apiKeyConfigured,
+        ]);
+    }
+
+    /**
+     * AI Makale Üretimi - Önizleme
+     */
+    public function generateAIArticlePreview()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('/admin/ai-makale-uret');
+            return;
+        }
+
+        try {
+            // Form verilerini al
+            $cityId = $_POST['city_id'] ?? null;
+            $districtId = !empty($_POST['district_id']) ? $_POST['district_id'] : null;
+            $wordCount = (int)($_POST['word_count'] ?? 1500); // Increased default to 1500
+
+            // Multi-keyword support: Check keyword option (template or manual)
+            $keywordOption = $_POST['keyword_option'] ?? 'template';
+
+            if ($keywordOption === 'manual') {
+                // Manual keywords: one per line
+                $keywordsInput = $_POST['keywords_manual'] ?? 'lastikçi';
+                $keywords = array_filter(array_map('trim', explode("\n", $keywordsInput)));
+            } else {
+                // Template keywords: Use standard template
+                // Will be populated with location name by AIService
+                $keywords = []; // Empty means use template
+            }
+
+            if (!$cityId) {
+                throw new Exception('Lütfen bir şehir seçin.');
+            }
+
+            // Şehir ve ilçe bilgilerini getir
+            $city = $this->cityModel->find($cityId);
+            if (!$city) {
+                throw new Exception('Şehir bulunamadı.');
+            }
+
+            $district = null;
+            if ($districtId) {
+                $district = $this->districtModel->find($districtId);
+                if (!$district) {
+                    throw new Exception('İlçe bulunamadı.');
+                }
+            }
+
+            // HUB Architecture: Check for existing article (duplicate prevention)
+            if ($districtId) {
+                $existingArticle = $this->articleModel->getDistrictHubArticle($districtId);
+                if ($existingArticle) {
+                    throw new Exception(
+                        'Bu ilçe için zaten bir HUB makalesi var. ' .
+                        'Her ilçe için sadece bir makale oluşturulabilir. ' .
+                        'Mevcut makaleyi düzenlemek isterseniz <a href="/admin/makale-duzenle/' .
+                        $existingArticle['id'] . '">buraya tıklayın</a>.'
+                    );
+                }
+            } else {
+                $existingArticle = $this->articleModel->getCityHubArticle($cityId);
+                if ($existingArticle) {
+                    throw new Exception(
+                        'Bu şehir için zaten bir HUB makalesi var. ' .
+                        'Her şehir için sadece bir makale oluşturulabilir. ' .
+                        'Mevcut makaleyi düzenlemek isterseniz <a href="/admin/makale-duzenle/' .
+                        $existingArticle['id'] . '">buraya tıklayın</a>.'
+                    );
+                }
+            }
+
+            // AI Service ile makale üret (multi-keyword support)
+            $aiService = new AIService();
+            $params = [
+                'city' => $city['name'],
+                'district' => $district ? $district['name'] : null,
+                'keywords' => $keywords, // Array of keywords or empty for template
+                'word_count' => $wordCount
+            ];
+
+            $articleData = $aiService->generateArticle($params);
+
+            // Slug üret
+            $slug = $this->generateSlug($articleData['title']);
+
+            // Session'a kaydet (preview için)
+            $_SESSION['ai_generated_article'] = [
+                'city_id' => $cityId,
+                'district_id' => $districtId,
+                'title' => $articleData['title'],
+                'slug' => $slug,
+                'content' => $articleData['content'],
+                'excerpt' => $articleData['excerpt'],
+                'meta_title' => $articleData['meta_title'],
+                'meta_description' => $articleData['meta_description'],
+                'keywords' => $keywords, // Store keywords array
+            ];
+
+            $_SESSION['success'] = 'Makale başarıyla oluşturuldu! Aşağıdan önizleyebilir ve kaydedebilirsiniz.';
+            $this->redirect('/admin/ai-makale-onizle');
+
+        } catch (Exception $e) {
+            $_SESSION['error'] = 'Makale oluşturulurken hata: ' . $e->getMessage();
+            $this->redirect('/admin/ai-makale-uret');
+        }
+    }
+
+    /**
+     * AI Makale Önizleme Sayfası
+     */
+    public function aiArticlePreview()
+    {
+        if (!isset($_SESSION['ai_generated_article'])) {
+            $_SESSION['error'] = 'Önizlenecek makale bulunamadı.';
+            $this->redirect('/admin/ai-makale-uret');
+            return;
+        }
+
+        $articleData = $_SESSION['ai_generated_article'];
+
+        // Şehir ve ilçe adlarını getir
+        $city = $this->cityModel->find($articleData['city_id']);
+        $district = null;
+        if ($articleData['district_id']) {
+            $district = $this->districtModel->find($articleData['district_id']);
+        }
+
+        $this->view('admin.ai-article-preview', [
+            'pageTitle' => 'Makale Önizleme',
+            'article' => $articleData,
+            'city' => $city,
+            'district' => $district,
+        ]);
+    }
+
+    /**
+     * AI Makale Kaydet
+     */
+    public function saveAIArticle()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('/admin/ai-makale-uret');
+            return;
+        }
+
+        if (!isset($_SESSION['ai_generated_article'])) {
+            $_SESSION['error'] = 'Kaydedilecek makale bulunamadı.';
+            $this->redirect('/admin/ai-makale-uret');
+            return;
+        }
+
+        $articleData = $_SESSION['ai_generated_article'];
+
+        // Makaleyi veritabanına kaydet
+        $data = [
+            'city_id' => $articleData['city_id'],
+            'district_id' => !empty($articleData['district_id']) ? $articleData['district_id'] : null,
+            'title' => $articleData['title'],
+            'slug' => $articleData['slug'],
+            'content' => $articleData['content'],
+            'excerpt' => $articleData['excerpt'],
+            'meta_title' => $articleData['meta_title'],
+            'meta_description' => $articleData['meta_description'],
+            'author_id' => $_SESSION['user_id'],
+            'is_published' => 1,
+            'published_at' => date('Y-m-d H:i:s'),
+        ];
+
+        $this->articleModel->create($data);
+
+        // Session'dan temizle
+        unset($_SESSION['ai_generated_article']);
+
+        $_SESSION['success'] = 'Makale başarıyla kaydedildi!';
+        $this->redirect('/admin/makaleler');
+    }
+
+    /**
+     * Toplu AI Makale Üretimi
+     */
+    public function bulkGenerateAIArticles()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('/admin/ai-makale-uret');
+            return;
+        }
+
+        try {
+            // Form verilerini al
+            $cityIds = $_POST['city_ids'] ?? [];
+            $districtOption = $_POST['district_option'] ?? 'all'; // all, selected, none
+            $selectedDistrictIds = $_POST['district_ids'] ?? [];
+            $keyword = $_POST['keyword'] ?? 'lastik servisi';
+            $wordCount = (int)($_POST['word_count'] ?? 800);
+            $autoPublish = isset($_POST['auto_publish']);
+
+            if (empty($cityIds)) {
+                throw new Exception('Lütfen en az bir şehir seçin.');
+            }
+
+            // Locations listesi oluştur
+            $locations = [];
+
+            foreach ($cityIds as $cityId) {
+                $city = $this->cityModel->find($cityId);
+                if (!$city) continue;
+
+                if ($districtOption === 'none') {
+                    // Sadece il seviyesi makale
+                    $locations[] = [
+                        'city_id' => $city['id'],
+                        'city_name' => $city['name'],
+                        'district_id' => null,
+                        'district_name' => null,
+                    ];
+                } elseif ($districtOption === 'all') {
+                    // Tüm ilçeler
+                    $districts = $this->districtModel->getByCity($cityId);
+                    foreach ($districts as $district) {
+                        $locations[] = [
+                            'city_id' => $city['id'],
+                            'city_name' => $city['name'],
+                            'district_id' => $district['id'],
+                            'district_name' => $district['name'],
+                        ];
+                    }
+                } elseif ($districtOption === 'selected' && !empty($selectedDistrictIds)) {
+                    // Seçili ilçeler
+                    foreach ($selectedDistrictIds as $districtId) {
+                        $district = $this->districtModel->find($districtId);
+                        if ($district && $district['city_id'] == $cityId) {
+                            $locations[] = [
+                                'city_id' => $city['id'],
+                                'city_name' => $city['name'],
+                                'district_id' => $district['id'],
+                                'district_name' => $district['name'],
+                            ];
+                        }
+                    }
+                }
+            }
+
+            if (empty($locations)) {
+                throw new Exception('Oluşturulacak makale konumu bulunamadı.');
+            }
+
+            // AI Service ile toplu üretim
+            $aiService = new AIService();
+            $results = $aiService->generateBulkArticles($locations, $keyword, $wordCount);
+
+            // Başarılı makaleleri kaydet
+            $successCount = 0;
+            $errorCount = 0;
+            $errors = [];
+
+            foreach ($results as $result) {
+                if ($result['success']) {
+                    $location = $result['location'];
+                    $article = $result['article'];
+
+                    $data = [
+                        'city_id' => $location['city_id'],
+                        'district_id' => $location['district_id'],
+                        'title' => $article['title'],
+                        'slug' => $this->generateSlug($article['title']),
+                        'content' => $article['content'],
+                        'excerpt' => $article['excerpt'],
+                        'meta_title' => $article['meta_title'],
+                        'meta_description' => $article['meta_description'],
+                        'author_id' => $_SESSION['user_id'],
+                        'is_published' => $autoPublish ? 1 : 0,
+                        'published_at' => $autoPublish ? date('Y-m-d H:i:s') : null,
+                    ];
+
+                    $this->articleModel->create($data);
+                    $successCount++;
+                } else {
+                    $errorCount++;
+                    $locationName = $result['location']['district_name']
+                        ? $result['location']['district_name'] . ', ' . $result['location']['city_name']
+                        : $result['location']['city_name'];
+                    $errors[] = "{$locationName}: " . $result['error'];
+                }
+            }
+
+            // Sonuç mesajı
+            $message = "{$successCount} makale başarıyla oluşturuldu.";
+            if ($errorCount > 0) {
+                $message .= " {$errorCount} hata oluştu.";
+                $_SESSION['bulk_generation_errors'] = $errors;
+            }
+
+            $_SESSION['success'] = $message;
+            $this->redirect('/admin/ai-makale-sonuc');
+
+        } catch (Exception $e) {
+            $_SESSION['error'] = 'Toplu üretim hatası: ' . $e->getMessage();
+            $this->redirect('/admin/ai-makale-uret');
+        }
+    }
+
+    /**
+     * Toplu Üretim Sonuç Sayfası
+     */
+    public function bulkGenerationResult()
+    {
+        $errors = $_SESSION['bulk_generation_errors'] ?? [];
+        unset($_SESSION['bulk_generation_errors']);
+
+        $this->view('admin.ai-article-result', [
+            'pageTitle' => 'Toplu Üretim Sonucu',
+            'errors' => $errors,
+        ]);
+    }
+
+    /**
+     * AI Ayarlar Sayfası
+     */
+    public function aiSettings()
+    {
+        $this->view('admin.ai-settings', [
+            'pageTitle' => 'AI Ayarları',
+        ]);
+    }
+
+    /**
+     * AI Ayarları Kaydet
+     */
+    public function saveAISettings()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('/admin/ai-ayarlar');
+            return;
+        }
+
+        $apiKey = $_POST['anthropic_api_key'] ?? '';
+
+        if (empty($apiKey)) {
+            $_SESSION['error'] = 'API key boş olamaz.';
+            $this->redirect('/admin/ai-ayarlar');
+            return;
+        }
+
+        // .env dosyasını güncelle
+        $envFile = __DIR__ . '/../.env';
+
+        if (!file_exists($envFile)) {
+            $_SESSION['error'] = '.env dosyası bulunamadı.';
+            $this->redirect('/admin/ai-ayarlar');
+            return;
+        }
+
+        $envContent = file_get_contents($envFile);
+
+        // ANTHROPIC_API_KEY satırını bul ve güncelle
+        if (preg_match('/^ANTHROPIC_API_KEY=.*$/m', $envContent)) {
+            // Varsa güncelle
+            $envContent = preg_replace(
+                '/^ANTHROPIC_API_KEY=.*$/m',
+                'ANTHROPIC_API_KEY=' . $apiKey,
+                $envContent
+            );
+        } else {
+            // Yoksa ekle
+            $envContent .= "\nANTHROPIC_API_KEY=" . $apiKey . "\n";
+        }
+
+        file_put_contents($envFile, $envContent);
+
+        $_SESSION['success'] = 'API key başarıyla kaydedildi.';
+        $this->redirect('/admin/ai-ayarlar');
+    }
+
+    /**
+     * AI Test - API bağlantısını test et
+     */
+    public function testAIConnection()
+    {
+        try {
+            $aiService = new AIService();
+            $result = $aiService->testConnection();
+
+            if ($result['success']) {
+                $_SESSION['success'] = $result['message'];
+            } else {
+                $_SESSION['error'] = $result['message'];
+            }
+        } catch (Exception $e) {
+            $_SESSION['error'] = 'Test hatası: ' . $e->getMessage();
+        }
+
+        $this->redirect('/admin/ai-ayarlar');
     }
 }

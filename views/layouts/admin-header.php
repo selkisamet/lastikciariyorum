@@ -22,6 +22,7 @@ require_once __DIR__ . '/header.php';
             <a href="<?= $this->getConfig('base_path') ?>/admin/firmalar" class="admin-nav-link <?= $pageId === 'companies' ? 'active' : '' ?>">Firmalar</a>
             <a href="<?= $this->getConfig('base_path') ?>/admin/kullanicilar" class="admin-nav-link <?= $pageId === 'users' ? 'active' : '' ?>">Kullanıcılar</a>
             <a href="<?= $this->getConfig('base_path') ?>/admin/makaleler" class="admin-nav-link <?= $pageId === 'articles' ? 'active' : '' ?>">Makaleler</a>
+            <a href="<?= $this->getConfig('base_path') ?>/admin/ai-makale-uret" class="admin-nav-link <?= $pageId === 'ai-articles' || $pageId === 'ai-settings' ? 'active' : '' ?>">✨ AI Makale Üret</a>
             <a href="<?= $this->getConfig('base_path') ?>/admin/sehirler" class="admin-nav-link <?= $pageId === 'cities' || $pageId === 'city-edit' ? 'active' : '' ?>">Şehirler</a>
             <a href="<?= $this->getConfig('base_path') ?>/admin/ilceler" class="admin-nav-link <?= $pageId === 'districts' || $pageId === 'district-edit' ? 'active' : '' ?>">İlçeler</a>
             <a href="<?= $this->getConfig('base_path') ?>/admin/silme-talepleri" class="admin-nav-link <?= $pageId === 'deletion-requests' ? 'active' : '' ?>">Silme Talepleri</a>

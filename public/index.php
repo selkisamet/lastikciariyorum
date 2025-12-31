@@ -32,6 +32,7 @@ spl_autoload_register(function ($class) {
         __DIR__ . '/../core/',
         __DIR__ . '/../models/',
         __DIR__ . '/../controllers/',
+        __DIR__ . '/../services/',
     ];
 
     foreach ($paths as $path) {
@@ -321,6 +322,52 @@ $router->post('/admin/kullanici-ekle', function () {
 $router->post('/admin/kullanici-sil/{id}', function ($id) {
     $controller = new AdminController();
     $controller->deleteUser($id);
+});
+
+// AI Article Generator routes
+$router->get('/admin/ai-makale-uret', function () {
+    $controller = new AdminController();
+    $controller->aiArticleGeneratorForm();
+});
+
+$router->post('/admin/ai-makale-uret', function () {
+    $controller = new AdminController();
+    $controller->generateAIArticlePreview();
+});
+
+$router->get('/admin/ai-makale-onizle', function () {
+    $controller = new AdminController();
+    $controller->aiArticlePreview();
+});
+
+$router->post('/admin/ai-makale-kaydet', function () {
+    $controller = new AdminController();
+    $controller->saveAIArticle();
+});
+
+$router->post('/admin/ai-makale-toplu-uret', function () {
+    $controller = new AdminController();
+    $controller->bulkGenerateAIArticles();
+});
+
+$router->get('/admin/ai-makale-sonuc', function () {
+    $controller = new AdminController();
+    $controller->bulkGenerationResult();
+});
+
+$router->get('/admin/ai-ayarlar', function () {
+    $controller = new AdminController();
+    $controller->aiSettings();
+});
+
+$router->post('/admin/ai-ayarlar', function () {
+    $controller = new AdminController();
+    $controller->saveAISettings();
+});
+
+$router->post('/admin/ai-test-baglanti', function () {
+    $controller = new AdminController();
+    $controller->testAIConnection();
 });
 
 // API routes

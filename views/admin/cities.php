@@ -17,9 +17,7 @@
             <thead>
                 <tr>
                     <th>Şehir Adı</th>
-                    <th>H1 Başlık</th>
-                    <th>İçerik Durumu</th>
-                    <th>H2 Bölümleri</th>
+                    <th>Makale Durumu</th>
                     <th>Firma Sayısı</th>
                     <th>İşlemler</th>
                 </tr>
@@ -29,30 +27,15 @@
                     <tr class="city-row" data-city-name="<?= htmlspecialchars(normalizeTurkish($city['name'])) ?>">
                         <td>
                             <strong><?= htmlspecialchars($city['name']) ?></strong>
+                            <br>
+                            <small class="text-muted">Slug: <?= htmlspecialchars($city['slug']) ?></small>
                         </td>
                         <td>
-                            <?php if (!empty($city['h1'])): ?>
-                                <span class="badge badge-success">✓</span>
+                            <?php if ($city['has_article']): ?>
+                                <span class="badge badge-success">✓ Makale Var</span>
                             <?php else: ?>
-                                <span class="badge badge-warning">-</span>
+                                <span class="badge badge-warning">Makale Yok</span>
                             <?php endif; ?>
-                        </td>
-                        <td>
-                            <?php if (!empty($city['content'])): ?>
-                                <span class="badge badge-success">✓ Var</span>
-                            <?php else: ?>
-                                <span class="badge badge-warning">Yok</span>
-                            <?php endif; ?>
-                        </td>
-                        <td>
-                            <?php
-                            $h2Count = 0;
-                            if (!empty($city['h2_sections'])) {
-                                $sections = json_decode($city['h2_sections'], true);
-                                $h2Count = is_array($sections) ? count($sections) : 0;
-                            }
-                            ?>
-                            <span class="badge badge-info"><?= $h2Count ?> Bölüm</span>
                         </td>
                         <td>
                             <span class="view-count"><?= $city['company_count'] ?? 0 ?></span>
@@ -66,11 +49,31 @@
                                 </svg>
                             </a>
                             <a href="<?= $this->getConfig('base_path') ?>/admin/sehir-duzenle/<?= $city['id'] ?>"
-                                class="btn btn-small btn-primary btn-icon" title="Düzenle">
+                                class="btn btn-small btn-secondary btn-icon" title="Şehir Bilgisi Düzenle">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
                                 </svg>
                             </a>
+                            <?php if ($city['has_article']): ?>
+                                <a href="<?= $this->getConfig('base_path') ?>/admin/makale-duzenle/<?= $city['article_id'] ?>"
+                                    class="btn btn-small btn-primary btn-icon" title="Makaleyi Düzenle">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                        <polyline points="14 2 14 8 20 8"></polyline>
+                                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                                        <polyline points="10 9 9 9 8 9"></polyline>
+                                    </svg>
+                                </a>
+                            <?php else: ?>
+                                <a href="<?= $this->getConfig('base_path') ?>/admin/ai-makale-uret?city_id=<?= $city['id'] ?>"
+                                    class="btn btn-small btn-success btn-icon" title="Makale Oluştur">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                                    </svg>
+                                </a>
+                            <?php endif; ?>
                         </td>
                     </tr>
                 <?php endforeach; ?>

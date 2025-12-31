@@ -74,46 +74,6 @@ class District extends Model
     }
 
     /**
-     * HUB SEO: Get district by slug with decoded H2 sections
-     */
-    public function getBySlugWithH2($cityId, $slug)
-    {
-        $district = $this->findBySlug($cityId, $slug);
-        if ($district && isset($district['h2_sections'])) {
-            $district['h2_sections'] = json_decode($district['h2_sections'], true) ?? [];
-        }
-        return $district;
-    }
-
-    /**
-     * HUB SEO: Get district by ID with decoded H2 sections
-     */
-    public function getWithH2Sections($districtId)
-    {
-        $sql = "SELECT * FROM {$this->table} WHERE id = ?";
-        $district = $this->db->fetch($sql, [$districtId]);
-        if ($district && isset($district['h2_sections'])) {
-            $district['h2_sections'] = json_decode($district['h2_sections'], true) ?? [];
-        }
-        return $district;
-    }
-
-    /**
-     * HUB SEO: Save district with encoded H2 sections
-     */
-    public function saveWithH2Sections($id, $data)
-    {
-        if (isset($data['h2_sections'])) {
-            // Validate and encode JSON structure
-            if (is_array($data['h2_sections'])) {
-                $data['h2_sections'] = json_encode($data['h2_sections'], JSON_UNESCAPED_UNICODE);
-            }
-        }
-
-        return $this->update($id, $data);
-    }
-
-    /**
      * Update district record
      */
     public function update($id, $data)
