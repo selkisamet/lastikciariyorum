@@ -49,33 +49,13 @@
                         </div>
                     </div>
 
-                    <!-- HUB Architecture: Multi-keyword support (Template or Manual) -->
+                    <!-- HUB Architecture: Manual keywords only -->
                     <div class="form-group">
-                        <label>Anahtar Kelime Seçeneği <span class="required">*</span></label>
-                        <div class="radio-group">
-                            <label class="radio-option">
-                                <input type="radio" name="keyword_option" value="template" checked>
-                                <span class="radio-label">
-                                    <strong>Standart Şablon Kullan (Önerilen)</strong>
-                                    <small>Her makale 5 anahtar kelime içerir: "{location} lastikçi", "{location} 7/24 lastikçi", "{location} mobil lastikçi", "{location} açık lastikçi", "{location} lastik tamiri"</small>
-                                </span>
-                            </label>
-                            <label class="radio-option">
-                                <input type="radio" name="keyword_option" value="manual">
-                                <span class="radio-label">
-                                    <strong>Manuel Giriş</strong>
-                                    <small>Özel anahtar kelimeler belirtin (her satıra bir tane)</small>
-                                </span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- Manual Keywords Input (Hidden by default) -->
-                    <div id="manual-keywords-group" class="form-group" style="display: none;">
-                        <label for="keywords_manual">Anahtar Kelimeler (Her satıra bir tane)</label>
-                        <textarea name="keywords_manual" id="keywords_manual" class="form-input" rows="5" placeholder="lastikçi&#10;7/24 lastikçi&#10;mobil lastikçi&#10;açık lastikçi&#10;lastik tamiri"></textarea>
+                        <label for="keywords_manual">Anahtar Kelimeler (Her satıra bir tane) <span class="required">*</span></label>
+                        <textarea name="keywords_manual" id="keywords_manual" class="form-input" rows="5" placeholder="lastikçi&#10;7/24 lastikçi&#10;mobil lastikçi&#10;açık lastikçi&#10;lastik tamiri" required></textarea>
                         <small class="form-help">Lokasyon adı otomatik eklenecektir. Örn: "lastikçi" → "Sultanbeyli lastikçi"</small>
                     </div>
+                    <input type="hidden" name="keyword_option" value="manual">
 
                     <!-- Word Count -->
                     <div class="form-group">
@@ -436,18 +416,6 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
             content.classList.remove('active');
         });
         document.getElementById(targetTab + '-tab').classList.add('active');
-    });
-});
-
-// HUB Architecture: Toggle manual keywords input
-document.querySelectorAll('input[name="keyword_option"]').forEach(radio => {
-    radio.addEventListener('change', function() {
-        const manualGroup = document.getElementById('manual-keywords-group');
-        if (this.value === 'manual') {
-            manualGroup.style.display = 'block';
-        } else {
-            manualGroup.style.display = 'none';
-        }
     });
 });
 
