@@ -33,8 +33,10 @@ class CityController extends Controller
         }
 
         $districts = $this->districtModel->getByCity($city['id']);
-        $articles = $this->articleModel->getByCity($city['id']);
-        $companies = $this->companyModel->getByCity($city['id']);
+
+        // HUB Architecture: Get single HUB article for city (no companies on city page)
+        $hubArticle = $this->articleModel->getCityHubArticle($city['id']);
+        $companies = []; // Empty: Companies removed from city pages per SEO plan
 
         // HUB SEO: Separate H1, meta title, meta description, and page description
         $h1 = !empty($city['h1'])
@@ -56,8 +58,8 @@ class CityController extends Controller
         $this->view('city.show', [
             'city' => $city,
             'districts' => $districts,
-            'articles' => $articles,
-            'companies' => $companies,
+            'hubArticle' => $hubArticle, // Single HUB article for city
+            'companies' => $companies, // Empty array
             'h1' => $h1,
             'pageTitle' => $pageTitle,
             'metaDescription' => $metaDescription,
@@ -84,8 +86,9 @@ class CityController extends Controller
             return;
         }
 
-        $articles = $this->articleModel->getByDistrict($district['id']);
-        $companies = $this->companyModel->getByDistrict($district['id']);
+        // HUB Architecture: Get single HUB article for district
+        $hubArticle = $this->articleModel->getDistrictHubArticle($district['id']);
+        $companies = $this->companyModel->getByDistrict($district['id']); // Companies remain on district pages
 
         // HUB SEO: Separate H1, meta title, meta description, and page description
         $h1 = !empty($district['h1'])
@@ -107,7 +110,7 @@ class CityController extends Controller
         $this->view('city.district', [
             'city' => $city,
             'district' => $district,
-            'articles' => $articles,
+            'hubArticle' => $hubArticle, // Single HUB article for district
             'companies' => $companies,
             'h1' => $h1,
             'pageTitle' => $pageTitle,

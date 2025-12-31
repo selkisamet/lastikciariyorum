@@ -138,4 +138,88 @@ class Article extends Model
 
         return $this->db->fetchAll($sql, [$limit]);
     }
+
+    /**
+     * HUB Architecture: Get single HUB article for district
+     *
+     * @param int $districtId
+     * @return array|null Single article for this district
+     */
+    public function getDistrictHubArticle($districtId)
+    {
+        $sql = "SELECT a.*, c.name as city_name, c.slug as city_slug,
+                       d.name as district_name, d.slug as district_slug,
+                       u.full_name as author_name
+                FROM articles a
+                LEFT JOIN cities c ON a.city_id = c.id
+                LEFT JOIN districts d ON a.district_id = d.id
+                LEFT JOIN users u ON a.author_id = u.id
+                WHERE a.district_id = ? AND a.is_published = 1
+                LIMIT 1";
+
+        return $this->db->fetch($sql, [$districtId]);
+    }
+
+    /**
+     * HUB Architecture: Get single HUB article for city
+     *
+     * @param int $cityId
+     * @return array|null Single article for this city (district_id IS NULL)
+     */
+    public function getCityHubArticle($cityId)
+    {
+        $sql = "SELECT a.*, c.name as city_name, c.slug as city_slug,
+                       u.full_name as author_name
+                FROM articles a
+                LEFT JOIN cities c ON a.city_id = c.id
+                LEFT JOIN users u ON a.author_id = u.id
+                WHERE a.city_id = ? AND a.district_id IS NULL AND a.is_published = 1
+                LIMIT 1";
+
+        return $this->db->fetch($sql, [$cityId]);
+    }
+
+    /**
+     * HUB Architecture: Create or update HUB article
+     * Ensures only one article per location
+     *
+     * @param array $data Article data
+     * @return int Article ID
+     */
+    public function createOrUpdateHubArticle($data)
+    {
+        $cityId = $data['city_id'];
+        $districtId = $data['district_id'] ?? null;
+
+        // Check if article already exists
+        if ($districtId) {
+            $existing = $this->getDistrictHubArticle($districtId);
+        } else {
+            $existing = $this->getCityHubArticle($cityId);
+        }
+
+        if ($existing) {
+            // Update existing article
+            $this->update($existing['id'], $data);
+            return $existing['id'];
+        } else {
+            // Create new article
+            return $this->create($data);
+        }
+    }
+
+    /**
+     * Find duplicate articles (for migration)
+     *
+     * @return array List of locations with multiple articles
+     */
+    public function findDuplicates()
+    {
+        $sql = "SELECT city_id, district_id, COUNT(*) as count
+                FROM articles
+                GROUP BY city_id, district_id
+                HAVING count > 1";
+
+        return $this->db->fetchAll($sql);
+    }
 }
