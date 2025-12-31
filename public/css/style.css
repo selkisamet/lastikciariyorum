@@ -392,10 +392,6 @@ body {
 /* Sections */
 .cities-section,
 .articles-section,
-.content-section {
-    padding: 5rem 0;
-}
-
 .section-title {
     font-size: 2.25rem;
     font-weight: 700;
@@ -810,7 +806,6 @@ body {
     background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
     position: relative;
     z-index: 1;
-    margin-top: 2rem;
 }
 
 .districts-grid {
@@ -2293,9 +2288,7 @@ body.no-ads [data-ad-slot],
 
 /* Responsive HUB Styles */
 @media (max-width: 768px) {
-    .hub-content-section {
-        padding: 2rem 0;
-    }
+
 
     .hub-main-content {
         font-size: 1rem;
