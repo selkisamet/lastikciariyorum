@@ -31,18 +31,23 @@ class ArticleController extends Controller
     {
         // HUB Architecture: Check for redirect first
         // Old article URLs should redirect to HUB pages (301 permanent)
-        if ($districtSlug) {
-            $oldUrl = "/{$citySlug}/{$districtSlug}/{$articleSlug}";
-        } else {
-            $oldUrl = "/{$citySlug}/{$articleSlug}";
-        }
+        try {
+            if ($districtSlug) {
+                $oldUrl = "/{$citySlug}/{$districtSlug}/{$articleSlug}";
+            } else {
+                $oldUrl = "/{$citySlug}/{$articleSlug}";
+            }
 
-        $redirect = $this->redirectModel->findRedirect($oldUrl);
+            $redirect = $this->redirectModel->findRedirect($oldUrl);
 
-        if ($redirect) {
-            // 301 Permanent Redirect to preserve SEO value
-            header("Location: {$redirect['new_url']}", true, $redirect['redirect_type'] ?? 301);
-            exit;
+            if ($redirect) {
+                // 301 Permanent Redirect to preserve SEO value
+                header("Location: {$redirect['new_url']}", true, $redirect['redirect_type'] ?? 301);
+                exit;
+            }
+        } catch (PDOException $e) {
+            // Redirect table doesn't exist yet - skip redirect check
+            // This is expected if create_redirects_table.sql hasn't been run yet
         }
 
         // No redirect found - check if article exists
