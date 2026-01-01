@@ -375,6 +375,37 @@ $router->get('/admin/generate-keyword-suggestions', function () {
     $controller->generateKeywordSuggestions();
 });
 
+// AI Provider Management Routes (Multi-Provider)
+$router->get('/admin/ai-saglaiycilar', function () {
+    $controller = new AdminController();
+    $controller->aiProviderSettings();
+});
+
+$router->post('/admin/ai-provider-toggle', function () {
+    $controller = new AdminController();
+    $controller->aiProviderToggle();
+});
+
+$router->post('/admin/ai-provider-test', function () {
+    $controller = new AdminController();
+    $controller->aiProviderTest();
+});
+
+$router->get('/admin/ai-provider-get/{id}', function ($id) {
+    $controller = new AdminController();
+    $controller->aiProviderGet($id);
+});
+
+$router->post('/admin/ai-provider-update/{id}', function ($id) {
+    $controller = new AdminController();
+    $controller->aiProviderUpdate($id);
+});
+
+$router->post('/admin/ai-provider-set-default', function () {
+    $controller = new AdminController();
+    $controller->aiProviderSetDefault();
+});
+
 // API routes
 $router->get('/api/districts/{city_id}', function ($cityId) {
     // Make $cityId available to the required file
@@ -455,6 +486,13 @@ $router->get('/{city}/{slug}', function ($citySlug, $slug) {
     $article = $articleModel->findBySlug($slug, $city['id'], null);
 
     if ($article) {
+        // VALIDATION: HUB articles should not be accessible via slug
+        // Redirect to canonical URL (SEO duplicate content prevention)
+        if (is_null($article['slug'])) {
+            header("Location: /{$citySlug}", true, 301);
+            exit;
+        }
+
         // It's a city-level article
         $controller = new ArticleController();
         $controller->show($citySlug, null, $slug);

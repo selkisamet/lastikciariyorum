@@ -70,7 +70,27 @@
                             ?>
                         </td>
                         <td class="action-buttons">
-                            <a href="<?= $this->getConfig('base_path') ?>/<?= $article['city_slug'] ?><?= $article['district_slug'] ? '/' . $article['district_slug'] : '' ?>/<?= $article['slug'] ?>"
+                            <?php
+                            // Generate canonical URL for article
+                            // HUB articles (slug=NULL): /istanbul/ or /istanbul/sultanbeyli/
+                            // Normal articles: /istanbul/sultanbeyli/makale-slug
+                            $base = $this->getConfig('base_path');
+                            if (is_null($article['slug']) || $article['slug'] === '') {
+                                // HUB article - canonical URL without slug
+                                $viewUrl = $base . '/' . $article['city_slug'];
+                                if ($article['district_slug']) {
+                                    $viewUrl .= '/' . $article['district_slug'];
+                                }
+                            } else {
+                                // Normal article - include slug
+                                $viewUrl = $base . '/' . $article['city_slug'];
+                                if ($article['district_slug']) {
+                                    $viewUrl .= '/' . $article['district_slug'];
+                                }
+                                $viewUrl .= '/' . $article['slug'];
+                            }
+                            ?>
+                            <a href="<?= $viewUrl ?>"
                                class="btn btn-small btn-info btn-icon" title="Görüntüle" target="_blank">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>

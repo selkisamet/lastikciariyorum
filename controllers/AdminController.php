@@ -439,11 +439,17 @@ class AdminController extends Controller
             return;
         }
 
+        $districtId = !empty($_POST['district_id']) ? $_POST['district_id'] : null;
+
+        // HUB article detection: District-level articles are always HUB
+        // City-level HUB detection happens via triggers (first article for city)
+        $isHub = !empty($districtId);
+
         $data = [
             'city_id' => $_POST['city_id'],
-            'district_id' => !empty($_POST['district_id']) ? $_POST['district_id'] : null,
+            'district_id' => $districtId,
             'title' => $_POST['title'],
-            'slug' => $this->generateSlug($_POST['title']),
+            'slug' => $isHub ? null : $this->generateSlug($_POST['title']),
             'content' => $_POST['content'],
             'excerpt' => $_POST['excerpt'] ?? null,
             'meta_title' => $_POST['meta_title'] ?? null,
@@ -499,11 +505,17 @@ class AdminController extends Controller
             return;
         }
 
+        $districtId = !empty($_POST['district_id']) ? $_POST['district_id'] : null;
+
+        // HUB article detection: District-level articles are always HUB
+        // Preserve existing HUB status if article already has slug=NULL
+        $isHub = !empty($districtId) || is_null($article['slug']);
+
         $data = [
             'city_id' => $_POST['city_id'],
-            'district_id' => !empty($_POST['district_id']) ? $_POST['district_id'] : null,
+            'district_id' => $districtId,
             'title' => $_POST['title'],
-            'slug' => $this->generateSlug($_POST['title']),
+            'slug' => $isHub ? null : $this->generateSlug($_POST['title']),
             'content' => $_POST['content'],
             'excerpt' => $_POST['excerpt'] ?? null,
             'meta_title' => $_POST['meta_title'] ?? null,
@@ -1384,7 +1396,11 @@ class AdminController extends Controller
                 'primary_keyword' => $primaryKeyword
             ];
 
+            // AI isteğini gönder (uzun sürebilir, bu sırada DB bağlantısı kopabilir)
             $articleData = $aiService->generateArticle($params);
+
+            // AI isteği bitti, şimdi veritabanı işlemlerini yap
+            // Database sınıfı otomatik olarak reconnect yapacak
 
             // Slug üret
             $slug = $this->generateSlug($articleData['title']);
@@ -1406,6 +1422,7 @@ class AdminController extends Controller
                     'published_at' => date('Y-m-d H:i:s'),
                 ];
 
+                // Veritabanına kaydet (reconnect otomatik yapılacak)
                 $this->articleModel->create($data);
                 $_SESSION['success'] = 'Makale başarıyla oluşturuldu ve yayınlandı!';
                 $this->redirect('/admin/makaleler');
@@ -1479,12 +1496,17 @@ class AdminController extends Controller
 
         $articleData = $_SESSION['ai_generated_article'];
 
+        $districtId = !empty($articleData['district_id']) ? $articleData['district_id'] : null;
+
+        // HUB article detection: District-level articles are always HUB
+        $isHub = !empty($districtId);
+
         // Makaleyi veritabanına kaydet
         $data = [
             'city_id' => $articleData['city_id'],
-            'district_id' => !empty($articleData['district_id']) ? $articleData['district_id'] : null,
+            'district_id' => $districtId,
             'title' => $articleData['title'],
-            'slug' => $articleData['slug'],
+            'slug' => $isHub ? null : $articleData['slug'],
             'content' => $articleData['content'],
             'excerpt' => $articleData['excerpt'],
             'meta_title' => $articleData['meta_title'],
@@ -1773,6 +1795,203 @@ class AdminController extends Controller
             $keywords = $aiService->generateKeywordSuggestions($city, $district, $primaryKeyword);
 
             echo json_encode(['success' => true, 'keywords' => $keywords]);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+    }
+
+    // ========================================
+    // AI PROVIDER MANAGEMENT (Multi-Provider)
+    // ========================================
+
+    /**
+     * AI Provider Settings Sayfası
+     */
+    public function aiProviderSettings()
+    {
+        require_once __DIR__ . '/../models/AIProviderSetting.php';
+        $providerModel = new AIProviderSetting();
+
+        $providers = $providerModel->getAllWithStats();
+
+        $this->view('admin.ai-provider-settings', [
+            'pageTitle' => 'AI Sağlayıcı Ayarları',
+            'providers' => $providers
+        ]);
+    }
+
+    /**
+     * Provider Aktif/Pasif Toggle (AJAX)
+     */
+    public function aiProviderToggle()
+    {
+        header('Content-Type: application/json');
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['success' => false, 'error' => 'Invalid request method']);
+            return;
+        }
+
+        $providerId = $_POST['provider_id'] ?? null;
+        $isActive = $_POST['is_active'] ?? 0;
+
+        if (!$providerId) {
+            echo json_encode(['success' => false, 'error' => 'Provider ID required']);
+            return;
+        }
+
+        try {
+            require_once __DIR__ . '/../models/AIProviderSetting.php';
+            $model = new AIProviderSetting();
+
+            $model->toggleActive($providerId, $isActive);
+
+            echo json_encode(['success' => true, 'message' => 'Durum güncellendi']);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Provider Test (AJAX)
+     */
+    public function aiProviderTest()
+    {
+        header('Content-Type: application/json');
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['success' => false, 'error' => 'Invalid request method']);
+            return;
+        }
+
+        $providerId = $_POST['provider_id'] ?? null;
+
+        if (!$providerId) {
+            echo json_encode(['success' => false, 'error' => 'Provider ID required']);
+            return;
+        }
+
+        try {
+            require_once __DIR__ . '/../models/AIProviderSetting.php';
+            $model = new AIProviderSetting();
+            $provider = $model->find($providerId);
+
+            if (!$provider) {
+                throw new Exception('Provider not found');
+            }
+
+            require_once __DIR__ . '/../services/AI/AIProviderFactory.php';
+            $aiProvider = AIProviderFactory::createFromSettings($provider);
+
+            $result = $aiProvider->testConnection();
+
+            echo json_encode($result);
+        } catch (Exception $e) {
+            echo json_encode([
+                'success' => false,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Provider Detaylarını Getir (AJAX)
+     */
+    public function aiProviderGet($id)
+    {
+        header('Content-Type: application/json');
+
+        try {
+            require_once __DIR__ . '/../models/AIProviderSetting.php';
+            $model = new AIProviderSetting();
+            $provider = $model->find($id);
+
+            if (!$provider) {
+                echo json_encode(['success' => false, 'error' => 'Provider not found']);
+                return;
+            }
+
+            // API key'i güvenlik nedeniyle gönderme
+            $provider['api_key'] = '';
+
+            echo json_encode($provider);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Provider Güncelle (AJAX)
+     */
+    public function aiProviderUpdate($id)
+    {
+        header('Content-Type: application/json');
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['success' => false, 'error' => 'Invalid request method']);
+            return;
+        }
+
+        try {
+            require_once __DIR__ . '/../models/AIProviderSetting.php';
+            $model = new AIProviderSetting();
+
+            $data = [];
+
+            // Sadece dolu alanları güncelle
+            if (!empty($_POST['api_key'])) {
+                $data['api_key'] = $_POST['api_key'];
+            }
+            if (isset($_POST['model_name'])) {
+                $data['model_name'] = $_POST['model_name'];
+            }
+            if (isset($_POST['max_tokens'])) {
+                $data['max_tokens'] = (int)$_POST['max_tokens'];
+            }
+            if (isset($_POST['temperature'])) {
+                $data['temperature'] = (float)$_POST['temperature'];
+            }
+            if (isset($_POST['priority'])) {
+                $data['priority'] = (int)$_POST['priority'];
+            }
+            if (isset($_POST['timeout_seconds'])) {
+                $data['timeout_seconds'] = (int)$_POST['timeout_seconds'];
+            }
+
+            $model->update($id, $data);
+
+            echo json_encode(['success' => true, 'message' => 'Kaydedildi']);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Varsayılan Provider Ayarla
+     */
+    public function aiProviderSetDefault()
+    {
+        header('Content-Type: application/json');
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['success' => false, 'error' => 'Invalid request method']);
+            return;
+        }
+
+        $providerId = $_POST['provider_id'] ?? null;
+
+        if (!$providerId) {
+            echo json_encode(['success' => false, 'error' => 'Provider ID required']);
+            return;
+        }
+
+        try {
+            require_once __DIR__ . '/../models/AIProviderSetting.php';
+            $model = new AIProviderSetting();
+
+            $model->setDefault($providerId);
+
+            echo json_encode(['success' => true, 'message' => 'Varsayılan sağlayıcı güncellendi']);
         } catch (Exception $e) {
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);
         }
