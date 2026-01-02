@@ -45,6 +45,7 @@ error_log
 .htaccess.local
 sftp-config.json
 .ftpconfig
+ads.txt
 
 # Build files
 /build/
