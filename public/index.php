@@ -374,6 +374,11 @@ $router->post('/admin/trigger-job-processor', function () {
     $controller->triggerJobProcessor();
 });
 
+$router->post('/admin/cancel-job', function () {
+    $controller = new AdminController();
+    $controller->cancelJob();
+});
+
 $router->get('/admin/ai-ayarlar', function () {
     $controller = new AdminController();
     $controller->aiSettings();

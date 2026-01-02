@@ -59,6 +59,15 @@
                 <div id="trigger-result" style="margin-top: 10px;"></div>
             </div>
         <?php endif; ?>
+
+        <?php if ($job['status'] === 'processing'): ?>
+            <div class="cancel-section">
+                <button type="button" id="cancelJobBtn" class="btn btn-danger">
+                    ⛔ İşlemi İptal Et
+                </button>
+                <div id="cancel-result" style="margin-top: 10px;"></div>
+            </div>
+        <?php endif; ?>
     </div>
 
     <!-- Results Section -->
@@ -170,6 +179,39 @@ function updateProgress(data) {
         statusTitle.textContent = '✓ İşlem Tamamlandı!';
     } else if (job.status === 'failed') {
         statusTitle.textContent = '❌ İşlem Başarısız';
+    }
+
+    // Update action buttons (show cancel when processing, hide when not)
+    const manualTriggerSection = document.querySelector('.manual-trigger-section');
+    const cancelSection = document.querySelector('.cancel-section');
+
+    if (job.status === 'processing') {
+        // Hide trigger button, show cancel button
+        if (manualTriggerSection) manualTriggerSection.style.display = 'none';
+        if (!cancelSection) {
+            // Create cancel section if it doesn't exist
+            const newCancelSection = document.createElement('div');
+            newCancelSection.className = 'cancel-section';
+            newCancelSection.innerHTML = `
+                <button type="button" id="cancelJobBtn" class="btn btn-danger">
+                    ⛔ İşlemi İptal Et
+                </button>
+                <div id="cancel-result" style="margin-top: 10px;"></div>
+            `;
+            document.querySelector('.progress-section').appendChild(newCancelSection);
+            // Re-attach cancel button event listener
+            attachCancelButtonListener();
+        } else {
+            cancelSection.style.display = 'block';
+        }
+    } else if (job.status === 'pending') {
+        // Show trigger button, hide cancel button
+        if (manualTriggerSection) manualTriggerSection.style.display = 'block';
+        if (cancelSection) cancelSection.style.display = 'none';
+    } else {
+        // Hide both for completed/failed
+        if (manualTriggerSection) manualTriggerSection.style.display = 'none';
+        if (cancelSection) cancelSection.style.display = 'none';
     }
 
     // Update results list
@@ -311,6 +353,63 @@ if (triggerBtn) {
         });
     });
 }
+
+// Cancel button function (can be called multiple times)
+function attachCancelButtonListener() {
+    const cancelBtn = document.getElementById('cancelJobBtn');
+    if (cancelBtn && !cancelBtn.dataset.listenerAttached) {
+        cancelBtn.dataset.listenerAttached = 'true';
+        cancelBtn.addEventListener('click', function() {
+            if (!confirm('İşlemi iptal etmek istediğinize emin misiniz?\n\n✓ Tamamlanmış makaleler kaydedilecek\n✓ Şu anda üretilmekte olan makale kaydedilmeyecek\n✓ Kalan makaleler iptal edilecek')) {
+                return;
+            }
+
+            const resultDiv = document.getElementById('cancel-result');
+            const btn = this;
+
+            btn.disabled = true;
+            btn.textContent = '⏳ İptal ediliyor...';
+            resultDiv.innerHTML = '';
+
+            fetch('<?= $this->getConfig('base_path') ?>/admin/cancel-job', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ job_id: jobId })
+            })
+            .then(response => {
+                console.log('Cancel response status:', response.status);
+                return response.json();
+            })
+            .then(data => {
+                console.log('Cancel response data:', data);
+                if (data.success) {
+                    resultDiv.innerHTML = '<div class="alert alert-success">✓ İşlem iptal edildi. Sayfa yenileniyor...</div>';
+                    // Stop polling
+                    clearInterval(pollInterval);
+                    // Reload page after 2 seconds
+                    setTimeout(() => {
+                        location.reload();
+                    }, 2000);
+                } else {
+                    resultDiv.innerHTML = '<div class="alert alert-danger">❌ ' + (data.error || 'İşlem iptal edilemedi') + '</div>';
+                    btn.disabled = false;
+                    btn.textContent = '⛔ İşlemi İptal Et';
+                }
+            })
+            .catch(error => {
+                console.error('Error cancelling job:', error);
+                resultDiv.innerHTML = '<div class="alert alert-danger">❌ Bir hata oluştu: ' + error.message + '</div>';
+                btn.disabled = false;
+                btn.textContent = '⛔ İşlemi İptal Et';
+            });
+        });
+    }
+}
+
+// Attach cancel button listener on page load
+attachCancelButtonListener();
 </script>
 
 <style>
@@ -528,6 +627,20 @@ if (triggerBtn) {
 }
 
 .manual-trigger-section .btn {
+    font-size: 16px;
+    padding: 12px 24px;
+}
+
+.cancel-section {
+    margin-top: 20px;
+    padding: 20px;
+    background: #f8d7da;
+    border: 2px solid #dc3545;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.cancel-section .btn {
     font-size: 16px;
     padding: 12px 24px;
 }
