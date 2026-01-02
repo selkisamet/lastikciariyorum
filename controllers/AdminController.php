@@ -6,7 +6,9 @@ require_once __DIR__ . '/../models/District.php';
 require_once __DIR__ . '/../models/Company.php';
 require_once __DIR__ . '/../models/Article.php';
 require_once __DIR__ . '/../models/DeletionRequest.php';
+require_once __DIR__ . '/../models/BackgroundJob.php';
 require_once __DIR__ . '/../services/AIService.php';
+require_once __DIR__ . '/../services/BackgroundJobProcessor.php';
 
 class AdminController extends Controller
 {
@@ -16,6 +18,7 @@ class AdminController extends Controller
     private $articleModel;
     private $deletionRequestModel;
     private $userModel;
+    private $backgroundJobModel;
 
     public function __construct()
     {
@@ -25,6 +28,7 @@ class AdminController extends Controller
         $this->articleModel = new Article();
         $this->deletionRequestModel = new DeletionRequest();
         $this->userModel = new User();
+        $this->backgroundJobModel = new BackgroundJob();
 
         // Check if user is admin
         if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'admin') {
@@ -439,11 +443,17 @@ class AdminController extends Controller
             return;
         }
 
+        $districtId = !empty($_POST['district_id']) ? $_POST['district_id'] : null;
+
+        // HUB article detection: District-level articles are always HUB
+        // City-level HUB detection happens via triggers (first article for city)
+        $isHub = !empty($districtId);
+
         $data = [
             'city_id' => $_POST['city_id'],
-            'district_id' => !empty($_POST['district_id']) ? $_POST['district_id'] : null,
+            'district_id' => $districtId,
             'title' => $_POST['title'],
-            'slug' => $this->generateSlug($_POST['title']),
+            'slug' => $isHub ? null : $this->generateSlug($_POST['title']),
             'content' => $_POST['content'],
             'excerpt' => $_POST['excerpt'] ?? null,
             'meta_title' => $_POST['meta_title'] ?? null,
@@ -499,11 +509,17 @@ class AdminController extends Controller
             return;
         }
 
+        $districtId = !empty($_POST['district_id']) ? $_POST['district_id'] : null;
+
+        // HUB article detection: District-level articles are always HUB
+        // Preserve existing HUB status if article already has slug=NULL
+        $isHub = !empty($districtId) || is_null($article['slug']);
+
         $data = [
             'city_id' => $_POST['city_id'],
-            'district_id' => !empty($_POST['district_id']) ? $_POST['district_id'] : null,
+            'district_id' => $districtId,
             'title' => $_POST['title'],
-            'slug' => $this->generateSlug($_POST['title']),
+            'slug' => $isHub ? null : $this->generateSlug($_POST['title']),
             'content' => $_POST['content'],
             'excerpt' => $_POST['excerpt'] ?? null,
             'meta_title' => $_POST['meta_title'] ?? null,
@@ -1384,10 +1400,14 @@ class AdminController extends Controller
                 'primary_keyword' => $primaryKeyword
             ];
 
+            // AI isteğini gönder (uzun sürebilir, bu sırada DB bağlantısı kopabilir)
             $articleData = $aiService->generateArticle($params);
 
-            // Slug üret
-            $slug = $this->generateSlug($articleData['title']);
+            // AI isteği bitti, şimdi veritabanı işlemlerini yap
+            // Database sınıfı otomatik olarak reconnect yapacak
+
+            // Slug kullanılmıyor (HUB mimarisi)
+            $slug = null;
 
             // Otomatik yayınla veya preview
             if ($autoPublish) {
@@ -1406,6 +1426,7 @@ class AdminController extends Controller
                     'published_at' => date('Y-m-d H:i:s'),
                 ];
 
+                // Veritabanına kaydet (reconnect otomatik yapılacak)
                 $this->articleModel->create($data);
                 $_SESSION['success'] = 'Makale başarıyla oluşturuldu ve yayınlandı!';
                 $this->redirect('/admin/makaleler');
@@ -1479,12 +1500,17 @@ class AdminController extends Controller
 
         $articleData = $_SESSION['ai_generated_article'];
 
+        $districtId = !empty($articleData['district_id']) ? $articleData['district_id'] : null;
+
+        // HUB article detection: District-level articles are always HUB
+        $isHub = !empty($districtId);
+
         // Makaleyi veritabanına kaydet
         $data = [
             'city_id' => $articleData['city_id'],
-            'district_id' => !empty($articleData['district_id']) ? $articleData['district_id'] : null,
+            'district_id' => $districtId,
             'title' => $articleData['title'],
-            'slug' => $articleData['slug'],
+            'slug' => $isHub ? null : $articleData['slug'],
             'content' => $articleData['content'],
             'excerpt' => $articleData['excerpt'],
             'meta_title' => $articleData['meta_title'],
@@ -1590,53 +1616,29 @@ class AdminController extends Controller
                 throw new Exception('Oluşturulacak makale konumu bulunamadı.');
             }
 
-            // AI Service ile toplu üretim
-            $aiService = new AIService();
-            $results = $aiService->generateBulkArticles($locations, $primaryKeyword, $keywords, $wordCount);
+            // Create background job instead of processing synchronously
+            $payload = [
+                'locations' => $locations,
+                'primary_keyword' => $primaryKeyword,
+                'keywords' => $keywords,
+                'word_count' => $wordCount,
+                'auto_publish' => $autoPublish,
+                'user_id' => $_SESSION['user_id'],
+            ];
 
-            // Başarılı makaleleri kaydet
-            $successCount = 0;
-            $errorCount = 0;
-            $errors = [];
+            $jobId = $this->backgroundJobModel->create(
+                'bulk_article_generation',
+                $payload,
+                $_SESSION['user_id'],
+                count($locations)
+            );
 
-            foreach ($results as $result) {
-                if ($result['success']) {
-                    $location = $result['location'];
-                    $article = $result['article'];
-
-                    $data = [
-                        'city_id' => $location['city_id'],
-                        'district_id' => $location['district_id'],
-                        'title' => $article['title'],
-                        'slug' => $this->generateSlug($article['title']),
-                        'content' => $article['content'],
-                        'excerpt' => $article['excerpt'],
-                        'meta_title' => $article['meta_title'],
-                        'meta_description' => $article['meta_description'],
-                        'author_id' => $_SESSION['user_id'],
-                        'is_published' => $autoPublish ? 1 : 0,
-                        'published_at' => $autoPublish ? date('Y-m-d H:i:s') : null,
-                    ];
-
-                    $this->articleModel->create($data);
-                    $successCount++;
-                } else {
-                    $errorCount++;
-                    $locationName = $result['location']['district_name']
-                        ? $result['location']['district_name'] . ', ' . $result['location']['city_name']
-                        : $result['location']['city_name'];
-                    $errors[] = "{$locationName}: " . $result['error'];
-                }
+            if (!$jobId) {
+                throw new Exception('Arka plan işi oluşturulamadı.');
             }
 
-            // Sonuç mesajı
-            $message = "{$successCount} makale başarıyla oluşturuldu.";
-            if ($errorCount > 0) {
-                $message .= " {$errorCount} hata oluştu.";
-                $_SESSION['bulk_generation_errors'] = $errors;
-            }
-
-            $_SESSION['success'] = $message;
+            $_SESSION['success'] = count($locations) . ' makale için üretim başlatıldı. İşlem arka planda devam ediyor.';
+            $_SESSION['job_id'] = $jobId;
             $this->redirect('/admin/ai-makale-sonuc');
 
         } catch (Exception $e) {
@@ -1650,13 +1652,118 @@ class AdminController extends Controller
      */
     public function bulkGenerationResult()
     {
-        $errors = $_SESSION['bulk_generation_errors'] ?? [];
-        unset($_SESSION['bulk_generation_errors']);
+        $jobId = $_SESSION['job_id'] ?? null;
+
+        if (!$jobId) {
+            $_SESSION['error'] = 'İş ID bulunamadı.';
+            $this->redirect('/admin/ai-makale-uret');
+            return;
+        }
+
+        $job = $this->backgroundJobModel->find($jobId);
+
+        if (!$job) {
+            $_SESSION['error'] = 'İş bulunamadı.';
+            $this->redirect('/admin/ai-makale-uret');
+            return;
+        }
+
+        $results = $this->backgroundJobModel->getResults($jobId);
 
         $this->view('admin.ai-article-result', [
             'pageTitle' => 'Toplu Üretim Sonucu',
-            'errors' => $errors,
+            'job' => $job,
+            'results' => $results,
         ]);
+    }
+
+    /**
+     * Get job status (AJAX endpoint)
+     */
+    public function getJobStatus()
+    {
+        header('Content-Type: application/json');
+
+        $jobId = $_GET['job_id'] ?? null;
+
+        if (!$jobId) {
+            echo json_encode(['error' => 'Job ID required']);
+            return;
+        }
+
+        $job = $this->backgroundJobModel->find($jobId);
+
+        if (!$job) {
+            echo json_encode(['error' => 'Job not found']);
+            return;
+        }
+
+        $results = $this->backgroundJobModel->getResults($jobId);
+
+        echo json_encode([
+            'success' => true,
+            'job' => $job,
+            'results' => $results,
+        ]);
+    }
+
+    /**
+     * Trigger job processor manually (AJAX endpoint)
+     * TEMPORARILY DISABLED - Async processing causes server overload
+     */
+    public function triggerJobProcessor()
+    {
+        header('Content-Type: application/json');
+
+        try {
+            // Get JSON input
+            $input = json_decode(file_get_contents('php://input'), true);
+            $jobId = $input['job_id'] ?? null;
+
+            if (!$jobId) {
+                echo json_encode(['success' => false, 'error' => 'Job ID required']);
+                return;
+            }
+
+            // Verify job exists and is pending
+            $job = $this->backgroundJobModel->find($jobId);
+            if (!$job) {
+                echo json_encode(['success' => false, 'error' => 'Job not found']);
+                return;
+            }
+
+            if ($job['status'] !== 'pending' && $job['status'] !== 'processing') {
+                echo json_encode(['success' => false, 'error' => 'Job is not pending (current status: ' . $job['status'] . ')']);
+                return;
+            }
+
+            // Trigger background processing using CLI
+            $rootPath = dirname(__DIR__);
+            $processJobsPath = $rootPath . '/process-jobs.php';
+
+            if (!file_exists($processJobsPath)) {
+                throw new Exception('process-jobs.php not found');
+            }
+
+            // Execute in background
+            if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+                // Windows
+                $cmd = "start /B php \"$processJobsPath\" --limit=100 > NUL 2>&1";
+                pclose(popen($cmd, 'r'));
+            } else {
+                // Linux/Unix
+                $cmd = "php \"$processJobsPath\" --limit=100 > /dev/null 2>&1 &";
+                exec($cmd);
+            }
+
+            echo json_encode([
+                'success' => true,
+                'message' => 'Job processor triggered in background',
+                'job_id' => $jobId
+            ]);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
     }
 
     /**
@@ -1773,6 +1880,238 @@ class AdminController extends Controller
             $keywords = $aiService->generateKeywordSuggestions($city, $district, $primaryKeyword);
 
             echo json_encode(['success' => true, 'keywords' => $keywords]);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+    }
+
+    public function getDistrictsForCities()
+    {
+        header('Content-Type: application/json');
+
+        try {
+            // Get JSON input
+            $input = json_decode(file_get_contents('php://input'), true);
+            $cityIds = $input['city_ids'] ?? [];
+
+            if (empty($cityIds)) {
+                echo json_encode(['success' => false, 'error' => 'İl seçimi yapılmadı.']);
+                return;
+            }
+
+            // Fetch districts for the selected cities
+            $db = Database::getInstance()->getConnection();
+            $placeholders = implode(',', array_fill(0, count($cityIds), '?'));
+
+            $stmt = $db->prepare("
+                SELECT d.id, d.name, d.city_id, c.name as city_name
+                FROM districts d
+                JOIN cities c ON d.city_id = c.id
+                WHERE d.city_id IN ($placeholders)
+                ORDER BY c.name ASC, d.name ASC
+            ");
+
+            $stmt->execute($cityIds);
+            $districts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            echo json_encode(['success' => true, 'districts' => $districts]);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+    }
+
+    // ========================================
+    // AI PROVIDER MANAGEMENT (Multi-Provider)
+    // ========================================
+
+    /**
+     * AI Provider Settings Sayfası
+     */
+    public function aiProviderSettings()
+    {
+        require_once __DIR__ . '/../models/AIProviderSetting.php';
+        $providerModel = new AIProviderSetting();
+
+        $providers = $providerModel->getAllWithStats();
+
+        $this->view('admin.ai-provider-settings', [
+            'pageTitle' => 'AI Sağlayıcı Ayarları',
+            'providers' => $providers
+        ]);
+    }
+
+    /**
+     * Provider Aktif/Pasif Toggle (AJAX)
+     */
+    public function aiProviderToggle()
+    {
+        header('Content-Type: application/json');
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['success' => false, 'error' => 'Invalid request method']);
+            return;
+        }
+
+        $providerId = $_POST['provider_id'] ?? null;
+        $isActive = $_POST['is_active'] ?? 0;
+
+        if (!$providerId) {
+            echo json_encode(['success' => false, 'error' => 'Provider ID required']);
+            return;
+        }
+
+        try {
+            require_once __DIR__ . '/../models/AIProviderSetting.php';
+            $model = new AIProviderSetting();
+
+            $model->toggleActive($providerId, $isActive);
+
+            echo json_encode(['success' => true, 'message' => 'Durum güncellendi']);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Provider Test (AJAX)
+     */
+    public function aiProviderTest()
+    {
+        header('Content-Type: application/json');
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['success' => false, 'error' => 'Invalid request method']);
+            return;
+        }
+
+        $providerId = $_POST['provider_id'] ?? null;
+
+        if (!$providerId) {
+            echo json_encode(['success' => false, 'error' => 'Provider ID required']);
+            return;
+        }
+
+        try {
+            require_once __DIR__ . '/../models/AIProviderSetting.php';
+            $model = new AIProviderSetting();
+            $provider = $model->find($providerId);
+
+            if (!$provider) {
+                throw new Exception('Provider not found');
+            }
+
+            require_once __DIR__ . '/../services/AI/AIProviderFactory.php';
+            $aiProvider = AIProviderFactory::createFromSettings($provider);
+
+            $result = $aiProvider->testConnection();
+
+            echo json_encode($result);
+        } catch (Exception $e) {
+            echo json_encode([
+                'success' => false,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Provider Detaylarını Getir (AJAX)
+     */
+    public function aiProviderGet($id)
+    {
+        header('Content-Type: application/json');
+
+        try {
+            require_once __DIR__ . '/../models/AIProviderSetting.php';
+            $model = new AIProviderSetting();
+            $provider = $model->find($id);
+
+            if (!$provider) {
+                echo json_encode(['success' => false, 'error' => 'Provider not found']);
+                return;
+            }
+
+            // API key'i güvenlik nedeniyle gönderme
+            $provider['api_key'] = '';
+
+            echo json_encode($provider);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Provider Güncelle (AJAX)
+     */
+    public function aiProviderUpdate($id)
+    {
+        header('Content-Type: application/json');
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['success' => false, 'error' => 'Invalid request method']);
+            return;
+        }
+
+        try {
+            require_once __DIR__ . '/../models/AIProviderSetting.php';
+            $model = new AIProviderSetting();
+
+            $data = [];
+
+            // Sadece dolu alanları güncelle
+            if (!empty($_POST['api_key'])) {
+                $data['api_key'] = $_POST['api_key'];
+            }
+            if (isset($_POST['model_name'])) {
+                $data['model_name'] = $_POST['model_name'];
+            }
+            if (isset($_POST['max_tokens'])) {
+                $data['max_tokens'] = (int)$_POST['max_tokens'];
+            }
+            if (isset($_POST['temperature'])) {
+                $data['temperature'] = (float)$_POST['temperature'];
+            }
+            if (isset($_POST['priority'])) {
+                $data['priority'] = (int)$_POST['priority'];
+            }
+            if (isset($_POST['timeout_seconds'])) {
+                $data['timeout_seconds'] = (int)$_POST['timeout_seconds'];
+            }
+
+            $model->update($id, $data);
+
+            echo json_encode(['success' => true, 'message' => 'Kaydedildi']);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Varsayılan Provider Ayarla
+     */
+    public function aiProviderSetDefault()
+    {
+        header('Content-Type: application/json');
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['success' => false, 'error' => 'Invalid request method']);
+            return;
+        }
+
+        $providerId = $_POST['provider_id'] ?? null;
+
+        if (!$providerId) {
+            echo json_encode(['success' => false, 'error' => 'Provider ID required']);
+            return;
+        }
+
+        try {
+            require_once __DIR__ . '/../models/AIProviderSetting.php';
+            $model = new AIProviderSetting();
+
+            $model->setDefault($providerId);
+
+            echo json_encode(['success' => true, 'message' => 'Varsayılan sağlayıcı güncellendi']);
         } catch (Exception $e) {
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);
         }

@@ -35,6 +35,24 @@
             </div>
 
             <div class="meta-item">
+                <strong>Kelime Sayısı:</strong>
+                <div class="meta-preview">
+                    <?php
+                    // HTML etiketlerini temizle ve kelime sayısını hesapla
+                    $plainText = strip_tags($article['content']);
+                    $wordCount = str_word_count($plainText, 0, 'ÇçĞğİıÖöŞşÜü0123456789');
+                    $badge = 'success';
+                    if ($wordCount < 800) {
+                        $badge = 'danger';
+                    } elseif ($wordCount < 1300) {
+                        $badge = 'warning';
+                    }
+                    ?>
+                    <span class="badge badge-<?= $badge ?>"><?= number_format($wordCount) ?> kelime</span>
+                </div>
+            </div>
+
+            <div class="meta-item">
                 <strong>URL Slug:</strong>
                 <div class="meta-preview">
                     <?php

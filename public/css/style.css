@@ -262,7 +262,6 @@ body {
 /* Alerts */
 .alert {
     padding: 1rem;
-    margin-bottom: 1rem;
 }
 
 .alert-success {
@@ -390,16 +389,14 @@ body {
 }
 
 /* Sections */
-.cities-section,
 .articles-section,
 .section-title {
     font-size: 2.25rem;
     font-weight: 700;
-    margin-bottom: 1rem;
     text-align: center;
     color: var(--text-primary);
     position: relative;
-    padding-bottom: 1.5rem;
+
 }
 
 .section-title::after {
@@ -408,7 +405,7 @@ body {
     width: 60px;
     height: 4px;
     background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
-    margin: 1rem auto 1rem;
+    margin: 1rem auto 0 auto;
     border-radius: 2px;
 }
 
@@ -423,7 +420,7 @@ body {
     background: #fff;
     border: 1px solid var(--border-color);
     border-radius: 0.75rem;
-    padding: 1.5rem;
+    padding: 1.7rem;
     text-decoration: none;
     color: var(--text-primary);
     transition: all 0.3s ease;
@@ -455,25 +452,8 @@ body {
 .city-name {
     font-size: 1.125rem;
     font-weight: 600;
-    margin-bottom: 0.75rem;
     color: var(--text-primary);
-}
-
-.city-stats {
-    display: flex;
-    gap: 1rem;
-}
-
-.stat {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    color: var(--text-secondary);
-    font-size: 0.875rem;
-}
-
-.stat-icon {
-    font-size: 1rem;
+    text-align: center;
 }
 
 .district-city {
@@ -485,12 +465,14 @@ body {
 /* Articles Grid */
 .articles-section {
     background: var(--bg-gray);
+    margin-top: 3rem;
 }
 
 .articles-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
     gap: 2rem;
+    padding-bottom: 3rem;
 }
 
 .article-card {
@@ -800,14 +782,6 @@ body {
     margin-bottom: 1.5rem;
 }
 
-/* Districts */
-.districts-section {
-    padding: 2rem 0;
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-    position: relative;
-    z-index: 1;
-}
-
 .districts-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -818,7 +792,7 @@ body {
     background: #fff;
     border: 1px solid var(--border-color);
     border-radius: 0.75rem;
-    padding: 1.5rem;
+    padding: 1.7rem;
     text-decoration: none;
     color: var(--text-primary);
     transition: all 0.3s ease;
@@ -850,15 +824,8 @@ body {
 .district-name {
     font-size: 1.125rem;
     font-weight: 600;
-    margin-bottom: 0.75rem;
     color: var(--text-primary);
-}
-
-.district-stats {
-    display: flex;
-    gap: 1rem;
-    font-size: 0.875rem;
-    color: var(--text-secondary);
+    text-align: center;
 }
 
 /* Article List */
@@ -1396,7 +1363,6 @@ select.form-input:focus {
     background: var(--text-primary);
     color: #fff;
     padding: 3rem 0 1rem;
-    margin-top: 4rem;
 }
 
 .footer-content {
@@ -1870,7 +1836,7 @@ select.form-input:focus {
     font-size: 1.25rem;
     font-weight: 700;
     color: var(--text-primary);
-    margin: 0;
+    padding: 3rem 0;
 }
 
 .section-link {
@@ -2158,40 +2124,12 @@ body.no-ads [data-ad-slot],
 }
 
 /* ========================================
-   HUB SEO ARCHITECTURE STYLES
+   SEO ARCHITECTURE STYLES
    ======================================== */
 
-/* HUB Content Section */
-.hub-content-section {
-    background: #fff;
-}
-
-.hub-main-content {
-    max-width: 900px;
-    margin: 0 auto;
-    font-size: 1.1rem;
-    line-height: 1.8;
-    color: var(--text-primary);
-}
-
-.hub-main-content p {
-    margin-bottom: 1.5rem;
-}
-
-.hub-main-content h2,
-.hub-main-content h3 {
-    margin-top: 2rem;
-    margin-bottom: 1rem;
-}
-
-.hub-main-content ul,
-.hub-main-content ol {
-    margin-left: 2rem;
-    margin-bottom: 1.5rem;
-}
-
-.hub-main-content li {
-    margin-bottom: 0.5rem;
+/* Content Section */
+.hub-article-section {
+    margin: 3rem 0;
 }
 
 /* H2 Sections Container */

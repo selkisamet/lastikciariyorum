@@ -93,8 +93,8 @@
                         </div>
 
                         <div class="form-actions">
-                            <button type="submit" class="btn btn-primary btn-large">
-                                <span class="btn-icon">✨</span> Makale Üret ve Önizle
+                            <button type="submit" class="btn btn-success btn-large">
+                                <span class="btn-icon">✨</span> Makale Üret
                             </button>
                         </div>
 
@@ -208,7 +208,7 @@
 
                         <div class="form-actions">
                             <button type="submit" class="btn btn-success btn-large" id="bulkGenerateBtn">
-                                <span class="btn-icon">🚀</span> Toplu Üretimi Başlat
+                                <span class="btn-icon">✨</span> Makale Üret
                             </button>
                         </div>
 
@@ -541,6 +541,10 @@
             } else if (districtOption === 'all') {
                 // Rough estimate: average 30 districts per city (İstanbul has 39, smaller cities have ~10)
                 estimatedArticles = selectedCities * 25;
+            } else if (districtOption === 'selected') {
+                // Count selected districts
+                const selectedDistricts = document.querySelectorAll('input[name="district_ids[]"]:checked').length;
+                estimatedArticles = selectedDistricts;
             }
 
             if (estimatedArticles > 0) {
@@ -561,6 +565,13 @@
             radio.addEventListener('change', updateEstimation);
         });
 
+        // Update estimation when districts are selected (will be added dynamically by main.js)
+        document.addEventListener('change', function(e) {
+            if (e.target.matches('input[name="district_ids[]"]')) {
+                updateEstimation();
+            }
+        });
+
         // Form submission confirmation
         document.getElementById('bulkGenerationForm').addEventListener('submit', function(e) {
             const selectedCities = document.querySelectorAll('.city-checkbox:checked').length;
@@ -569,6 +580,17 @@
                 e.preventDefault();
                 alert('Lütfen en az bir il seçin.');
                 return;
+            }
+
+            // Check if "selected" option is chosen and districts are selected
+            const districtOption = document.querySelector('input[name="district_option"]:checked');
+            if (districtOption && districtOption.value === 'selected') {
+                const selectedDistricts = document.querySelectorAll('input[name="district_ids[]"]:checked').length;
+                if (selectedDistricts === 0) {
+                    e.preventDefault();
+                    alert('Lütfen en az bir ilçe seçin veya farklı bir ilçe seçeneği belirleyin.');
+                    return;
+                }
             }
 
             const estimatedArticles = parseInt(document.getElementById('estimatedArticles').textContent);

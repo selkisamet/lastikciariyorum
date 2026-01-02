@@ -21,12 +21,6 @@
             <?php foreach ($cities as $city): ?>
                 <a href="<?= url($city['slug']) ?>" class="city-card" data-type="city" data-name="<?= htmlspecialchars($city['name']) ?>">
                     <h3 class="city-name"><?= htmlspecialchars($city['name']) ?></h3>
-                    <div class="city-stats">
-                        <span class="stat">
-                            <span class="stat-icon">🏢</span>
-                            <?= $city['company_count'] ?> Firma
-                        </span>
-                    </div>
                 </a>
             <?php endforeach; ?>
         </div>

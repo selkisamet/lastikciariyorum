@@ -222,4 +222,38 @@ class Article extends Model
 
         return $this->db->fetchAll($sql);
     }
+
+    /**
+     * Check if article is a HUB article (slug=NULL)
+     *
+     * @param int $articleId Article ID
+     * @return bool True if HUB article, false otherwise
+     */
+    public function isHubArticle($articleId)
+    {
+        $article = $this->find($articleId);
+        return $article && is_null($article['slug']);
+    }
+
+    /**
+     * Get canonical URL for article
+     *
+     * @param array $article Article data with city_slug, district_slug, slug
+     * @return string Canonical URL path
+     */
+    public function getCanonicalUrl($article)
+    {
+        $url = '/' . $article['city_slug'];
+
+        if (!empty($article['district_slug'])) {
+            $url .= '/' . $article['district_slug'];
+        }
+
+        // HUB article ise slug ekleme (slug=NULL)
+        if (!is_null($article['slug']) && $article['slug'] !== '') {
+            $url .= '/' . $article['slug'];
+        }
+
+        return $url;
+    }
 }

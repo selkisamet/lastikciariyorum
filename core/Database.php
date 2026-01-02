@@ -28,12 +28,58 @@ class Database
 
     public function getConnection()
     {
+        // Her getConnection çağrısında bağlantıyı kontrol et
+        $this->reconnectIfNeeded();
         return $this->pdo;
+    }
+
+    /**
+     * Bağlantının hala aktif olup olmadığını kontrol et ve gerekirse yeniden bağlan
+     */
+    private function reconnectIfNeeded()
+    {
+        try {
+            // Basit bir ping sorgusu ile bağlantıyı test et
+            if ($this->pdo === null) {
+                $this->reconnect();
+                return;
+            }
+
+            @$this->pdo->query('SELECT 1');
+        } catch (PDOException $e) {
+            // Bağlantı kopmuş, yeniden bağlan
+            $this->reconnect();
+        } catch (Exception $e) {
+            // Herhangi bir hata, reconnect dene
+            $this->reconnect();
+        }
+    }
+
+    private function reconnect()
+    {
+        try {
+            error_log("MySQL reconnecting...");
+            $config = require __DIR__ . '/../config/database.php';
+            $dsn = "mysql:host={$config['host']};dbname={$config['dbname']};charset={$config['charset']}";
+
+            // Eski bağlantıyı temizle
+            $this->pdo = null;
+
+            // Yeni bağlantı oluştur
+            $this->pdo = new PDO($dsn, $config['username'], $config['password'], $config['options']);
+            error_log("MySQL reconnected successfully");
+        } catch (PDOException $e) {
+            error_log("MySQL reconnect failed: " . $e->getMessage());
+            throw $e;
+        }
     }
 
     public function query($sql, $params = [])
     {
         try {
+            // Her sorgudan önce bağlantıyı kontrol et
+            $this->reconnectIfNeeded();
+
             $stmt = $this->pdo->prepare($sql);
             $stmt->execute($params);
             return $stmt;

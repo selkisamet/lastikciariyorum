@@ -16,7 +16,7 @@ ob_start();
 
 <!-- HUB Architecture: Single District HUB Article (long comprehensive content) -->
 <?php if (!empty($hubArticle)): ?>
-    <section class="hub-article-section">
+    <section class="article-section">
         <div class="container">
             <article class="hub-article">
                 <h2 class="hub-article-title"><?= htmlspecialchars($hubArticle['title']) ?></h2>

@@ -1,5 +1,14 @@
 <?php
 
+// Character encoding configuration - MUST BE FIRST
+mb_internal_encoding('UTF-8');
+mb_http_output('UTF-8');
+ini_set('default_charset', 'UTF-8');
+
+// Timeout configuration for long-running operations
+ini_set('max_execution_time', 300); // 5 minutes max for web requests
+ini_set('max_input_time', 300); // 5 minutes for input processing
+
 // Session güvenlik yapılandırması
 ini_set('session.cookie_httponly', 1); // JavaScript ile erişimi engelle
 ini_set('session.cookie_secure', 0);   // HTTPS için 1 yapın (development için 0)
@@ -355,6 +364,16 @@ $router->get('/admin/ai-makale-sonuc', function () {
     $controller->bulkGenerationResult();
 });
 
+$router->get('/admin/job-status', function () {
+    $controller = new AdminController();
+    $controller->getJobStatus();
+});
+
+$router->post('/admin/trigger-job-processor', function () {
+    $controller = new AdminController();
+    $controller->triggerJobProcessor();
+});
+
 $router->get('/admin/ai-ayarlar', function () {
     $controller = new AdminController();
     $controller->aiSettings();
@@ -373,6 +392,42 @@ $router->post('/admin/ai-test-baglanti', function () {
 $router->get('/admin/generate-keyword-suggestions', function () {
     $controller = new AdminController();
     $controller->generateKeywordSuggestions();
+});
+
+$router->post('/admin/get-districts-for-cities', function () {
+    $controller = new AdminController();
+    $controller->getDistrictsForCities();
+});
+
+// AI Provider Management Routes (Multi-Provider)
+$router->get('/admin/ai-saglaiycilar', function () {
+    $controller = new AdminController();
+    $controller->aiProviderSettings();
+});
+
+$router->post('/admin/ai-provider-toggle', function () {
+    $controller = new AdminController();
+    $controller->aiProviderToggle();
+});
+
+$router->post('/admin/ai-provider-test', function () {
+    $controller = new AdminController();
+    $controller->aiProviderTest();
+});
+
+$router->get('/admin/ai-provider-get/{id}', function ($id) {
+    $controller = new AdminController();
+    $controller->aiProviderGet($id);
+});
+
+$router->post('/admin/ai-provider-update/{id}', function ($id) {
+    $controller = new AdminController();
+    $controller->aiProviderUpdate($id);
+});
+
+$router->post('/admin/ai-provider-set-default', function () {
+    $controller = new AdminController();
+    $controller->aiProviderSetDefault();
 });
 
 // API routes
@@ -455,6 +510,13 @@ $router->get('/{city}/{slug}', function ($citySlug, $slug) {
     $article = $articleModel->findBySlug($slug, $city['id'], null);
 
     if ($article) {
+        // VALIDATION: HUB articles should not be accessible via slug
+        // Redirect to canonical URL (SEO duplicate content prevention)
+        if (is_null($article['slug'])) {
+            header("Location: /{$citySlug}", true, 301);
+            exit;
+        }
+
         // It's a city-level article
         $controller = new ArticleController();
         $controller->show($citySlug, null, $slug);

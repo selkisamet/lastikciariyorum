@@ -46,7 +46,7 @@
             </thead>
             <tbody>
                 <?php foreach ($users as $user): ?>
-                    <tr class="user-row" data-user-info="<?= strtolower(htmlspecialchars($user['full_name'] . ' ' . $user['email'])) ?>">
+                    <tr class="user-row" data-user-info="<?= mb_strtolower(htmlspecialchars($user['full_name'] . ' ' . $user['email']), 'UTF-8') ?>">
                         <td class="user-name">
                             <strong><?= htmlspecialchars($user['full_name']) ?></strong>
                         </td>
@@ -124,7 +124,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (searchInput && usersTable) {
         searchInput.addEventListener('input', function() {
-            const searchTerm = this.value.toLowerCase().trim();
+            const searchTerm = this.value.toLocaleLowerCase('tr-TR').trim();
             let visibleCount = 0;
 
             userRows.forEach(row => {

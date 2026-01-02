@@ -38,12 +38,26 @@ class HomeController extends Controller
 
     public function search()
     {
-        header('Content-Type: application/json');
+        header('Content-Type: application/json; charset=utf-8');
 
         $searchTerm = $_GET['q'] ?? '';
 
-        if (strlen($searchTerm) < 2) {
-            echo json_encode(['results' => []]);
+        // DEBUG MODE: Return detailed information
+        if (isset($_GET['debug'])) {
+            echo json_encode([
+                'debug' => [
+                    'raw_term' => $searchTerm,
+                    'hex' => bin2hex($searchTerm),
+                    'strlen' => strlen($searchTerm),
+                    'mb_strlen' => mb_strlen($searchTerm, 'UTF-8'),
+                    'encoding' => mb_detect_encoding($searchTerm, ['UTF-8', 'ISO-8859-9', 'Windows-1254'], true),
+                ]
+            ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+            return;
+        }
+
+        if (mb_strlen($searchTerm, 'UTF-8') < 2) {
+            echo json_encode(['results' => []], JSON_UNESCAPED_UNICODE);
             return;
         }
 
@@ -72,6 +86,6 @@ class HomeController extends Controller
             ];
         }
 
-        echo json_encode(['results' => $results]);
+        echo json_encode(['results' => $results], JSON_UNESCAPED_UNICODE);
     }
 }
