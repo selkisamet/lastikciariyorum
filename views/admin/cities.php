@@ -104,7 +104,7 @@
                 .replace(/Ü/g, 'ü')
                 .replace(/Ö/g, 'ö')
                 .replace(/Ç/g, 'ç')
-                .toLowerCase();
+                .toLocaleLowerCase('tr-TR');
         }
 
         if (searchInput && citiesTable) {

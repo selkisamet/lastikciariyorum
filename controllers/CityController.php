@@ -5,6 +5,7 @@ require_once __DIR__ . '/../models/City.php';
 require_once __DIR__ . '/../models/District.php';
 require_once __DIR__ . '/../models/Article.php';
 require_once __DIR__ . '/../models/Company.php';
+require_once __DIR__ . '/../models/ViewLog.php';
 
 class CityController extends Controller
 {
@@ -12,6 +13,7 @@ class CityController extends Controller
     private $districtModel;
     private $articleModel;
     private $companyModel;
+    private $viewLogModel;
 
     public function __construct()
     {
@@ -19,6 +21,7 @@ class CityController extends Controller
         $this->districtModel = new District();
         $this->articleModel = new Article();
         $this->companyModel = new Company();
+        $this->viewLogModel = new ViewLog();
     }
 
     public function show($citySlug)
@@ -37,6 +40,20 @@ class CityController extends Controller
         // HUB Architecture: Get single HUB article for city (no companies on city page)
         $hubArticle = $this->articleModel->getCityHubArticle($city['id']);
         $companies = []; // Empty: Companies removed from city pages per SEO plan
+
+        // IP bazlı güvenli görüntülenme sayacı (HUB article varsa)
+        if ($hubArticle) {
+            $ipAddress = ViewLog::getClientIp();
+            $userAgent = ViewLog::getUserAgent();
+
+            // Son 24 saat içinde aynı IP'den görüntülenme yoksa say
+            if (!$this->viewLogModel->hasRecentView('article', $hubArticle['id'], $ipAddress, 24)) {
+                // Görüntülenme kaydını oluştur
+                $this->viewLogModel->logView('article', $hubArticle['id'], $ipAddress, $userAgent);
+                // Sayacı artır
+                $this->articleModel->incrementViewCount($hubArticle['id']);
+            }
+        }
 
         // ALL meta from article (or fallback if no article)
         if ($hubArticle) {
@@ -86,6 +103,20 @@ class CityController extends Controller
         // HUB Architecture: Get single HUB article for district
         $hubArticle = $this->articleModel->getDistrictHubArticle($district['id']);
         $companies = $this->companyModel->getByDistrict($district['id']); // Companies remain on district pages
+
+        // IP bazlı güvenli görüntülenme sayacı (HUB article varsa)
+        if ($hubArticle) {
+            $ipAddress = ViewLog::getClientIp();
+            $userAgent = ViewLog::getUserAgent();
+
+            // Son 24 saat içinde aynı IP'den görüntülenme yoksa say
+            if (!$this->viewLogModel->hasRecentView('article', $hubArticle['id'], $ipAddress, 24)) {
+                // Görüntülenme kaydını oluştur
+                $this->viewLogModel->logView('article', $hubArticle['id'], $ipAddress, $userAgent);
+                // Sayacı artır
+                $this->articleModel->incrementViewCount($hubArticle['id']);
+            }
+        }
 
         // ALL meta from article (or fallback if no article)
         if ($hubArticle) {

@@ -59,7 +59,7 @@ class District extends Model
                        (SELECT COUNT(*) FROM companies WHERE district_id = d.id AND is_approved = 1) as company_count
                 FROM districts d
                 JOIN cities c ON d.city_id = c.id
-                WHERE d.name LIKE ? OR c.name LIKE ?
+                WHERE d.name COLLATE utf8mb4_turkish_ci LIKE ? OR c.name COLLATE utf8mb4_turkish_ci LIKE ?
                 ORDER BY d.name ASC
                 LIMIT 20";
 

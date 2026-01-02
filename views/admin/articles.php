@@ -45,7 +45,7 @@
             </thead>
             <tbody>
                 <?php foreach ($articles as $article): ?>
-                    <tr class="article-row" data-article-title="<?= strtolower(htmlspecialchars($article['title'])) ?>">
+                    <tr class="article-row" data-article-title="<?= mb_strtolower(htmlspecialchars($article['title']), 'UTF-8') ?>">
                         <td class="article-title">
                             <strong><?= htmlspecialchars($article['title']) ?></strong>
                         </td>
@@ -142,7 +142,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (searchInput && articlesTable) {
         searchInput.addEventListener('input', function() {
-            const searchTerm = this.value.toLowerCase().trim();
+            const searchTerm = this.value.toLocaleLowerCase('tr-TR').trim();
             let visibleCount = 0;
 
             articleRows.forEach(row => {

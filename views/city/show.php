@@ -22,9 +22,6 @@ ob_start();
                 <?php foreach ($districts as $district): ?>
                     <a href="<?= $this->getConfig('base_path') ?>/<?= $city['slug'] ?>/<?= $district['slug'] ?>" class="district-card">
                         <h3 class="district-name"><?= htmlspecialchars($district['name']) ?></h3>
-                        <div class="district-stats">
-                            <span class="stat-small">🏢 <?= $district['company_count'] ?> Firma</span>
-                        </div>
                     </a>
                 <?php endforeach; ?>
             </div>

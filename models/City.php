@@ -38,7 +38,7 @@ class City extends Model
         $sql = "SELECT c.*,
                        (SELECT COUNT(*) FROM companies WHERE city_id = c.id AND is_approved = 1) as company_count
                 FROM cities c
-                WHERE c.name LIKE ?
+                WHERE c.name COLLATE utf8mb4_turkish_ci LIKE ?
                 ORDER BY c.name ASC
                 LIMIT 20";
 

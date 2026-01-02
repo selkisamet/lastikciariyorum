@@ -1716,14 +1716,6 @@ class AdminController extends Controller
         header('Content-Type: application/json');
 
         try {
-            // DISABLED: Return message to use manual processor instead
-            echo json_encode([
-                'success' => false,
-                'error' => 'Async processing geçici olarak devre dışı. Lütfen manuel olarak /run-job-processor.php sayfasını açın.',
-                'manual_url' => '/run-job-processor.php'
-            ]);
-            return;
-
             // Get JSON input
             $input = json_decode(file_get_contents('php://input'), true);
             $jobId = $input['job_id'] ?? null;
@@ -1740,33 +1732,28 @@ class AdminController extends Controller
                 return;
             }
 
-            if ($job['status'] !== 'pending') {
+            if ($job['status'] !== 'pending' && $job['status'] !== 'processing') {
                 echo json_encode(['success' => false, 'error' => 'Job is not pending (current status: ' . $job['status'] . ')']);
                 return;
             }
 
-            // Instead of processing synchronously, trigger async processing
-            // by calling the web-based processor in background
-            $baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://" . $_SERVER['HTTP_HOST'];
-            $processorUrl = $baseUrl . dirname($_SERVER['SCRIPT_NAME']) . '/run-job-processor.php?async=1';
+            // Trigger background processing using CLI
+            $rootPath = dirname(__DIR__);
+            $processJobsPath = $rootPath . '/process-jobs.php';
 
-            // Use cURL with timeout to trigger async mode
-            $ch = curl_init($processorUrl);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 5); // 5 seconds - enough for async trigger
-            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, ['X-Requested-With: XMLHttpRequest']);
+            if (!file_exists($processJobsPath)) {
+                throw new Exception('process-jobs.php not found');
+            }
 
-            // Execute request
-            $response = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
-
-            // Check if trigger was successful
-            if ($httpCode !== 200) {
-                throw new Exception('Failed to trigger job processor (HTTP ' . $httpCode . ')');
+            // Execute in background
+            if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+                // Windows
+                $cmd = "start /B php \"$processJobsPath\" --limit=100 > NUL 2>&1";
+                pclose(popen($cmd, 'r'));
+            } else {
+                // Linux/Unix
+                $cmd = "php \"$processJobsPath\" --limit=100 > /dev/null 2>&1 &";
+                exec($cmd);
             }
 
             echo json_encode([

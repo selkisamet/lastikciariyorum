@@ -54,7 +54,7 @@
                     </thead>
                     <tbody>
                         <?php foreach ($companies as $company): ?>
-                            <tr class="company-row" data-company-name="<?= strtolower(htmlspecialchars($company['name'])) ?>">
+                            <tr class="company-row" data-company-name="<?= mb_strtolower(htmlspecialchars($company['name']), 'UTF-8') ?>">
                                 <td class="company-name">
                                     <strong><?= htmlspecialchars($company['name']) ?></strong>
                                 </td>
@@ -125,7 +125,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (searchInput && companiesTable) {
         searchInput.addEventListener('input', function() {
-            const searchTerm = this.value.toLowerCase().trim();
+            const searchTerm = this.value.toLocaleLowerCase('tr-TR').trim();
             let visibleCount = 0;
 
             companyRows.forEach(row => {
