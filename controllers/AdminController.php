@@ -1766,6 +1766,50 @@ class AdminController extends Controller
         }
     }
 
+    public function cancelJob()
+    {
+        header('Content-Type: application/json');
+
+        try {
+            // Get JSON input
+            $input = json_decode(file_get_contents('php://input'), true);
+            $jobId = $input['job_id'] ?? null;
+
+            if (!$jobId) {
+                echo json_encode(['success' => false, 'error' => 'Job ID required']);
+                return;
+            }
+
+            // Verify job exists
+            $job = $this->backgroundJobModel->find($jobId);
+            if (!$job) {
+                echo json_encode(['success' => false, 'error' => 'Job not found']);
+                return;
+            }
+
+            // Only allow cancelling pending or processing jobs
+            if ($job['status'] !== 'pending' && $job['status'] !== 'processing') {
+                echo json_encode(['success' => false, 'error' => 'Job cannot be cancelled (status: ' . $job['status'] . ')']);
+                return;
+            }
+
+            // Update job status to failed with cancellation message
+            $this->backgroundJobModel->updateStatus($jobId, 'failed', 'İşlem kullanıcı tarafından iptal edildi');
+
+            echo json_encode([
+                'success' => true,
+                'message' => 'Job cancelled successfully'
+            ]);
+
+        } catch (Exception $e) {
+            error_log('Error cancelling job: ' . $e->getMessage());
+            echo json_encode([
+                'success' => false,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
     /**
      * AI Ayarlar Sayfası
      */

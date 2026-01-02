@@ -61,6 +61,17 @@ class BackgroundJobProcessor
                     throw new Exception("Unknown job type: {$job['job_type']}");
             }
 
+            // Check if job was cancelled during processing (use fresh DB query)
+            $db = Database::getInstance()->getConnection();
+            $stmt = $db->prepare("SELECT status FROM background_jobs WHERE id = ?");
+            $stmt->execute([$jobId]);
+            $currentStatus = $stmt->fetchColumn();
+
+            if ($currentStatus === 'failed') {
+                // Job was cancelled, don't mark as completed
+                return false;
+            }
+
             // Mark as completed
             $this->jobModel->updateStatus($jobId, 'completed');
             return true;
@@ -112,6 +123,17 @@ class BackgroundJobProcessor
         }
 
         foreach ($locations as $index => $location) {
+            // Check if job was cancelled (get fresh data from DB)
+            $db = Database::getInstance()->getConnection();
+            $stmt = $db->prepare("SELECT status FROM background_jobs WHERE id = ?");
+            $stmt->execute([$jobId]);
+            $currentJobStatus = $stmt->fetchColumn();
+
+            if ($currentJobStatus === 'failed') {
+                // Job was cancelled by user
+                break; // Exit the loop
+            }
+
             // RECOVERY: Skip already processed items
             if ($index < $processedCount) {
                 continue;
@@ -158,6 +180,17 @@ class BackgroundJobProcessor
                     continue;
                 }
 
+                // Check if job was cancelled BEFORE generating article
+                $db = Database::getInstance()->getConnection();
+                $stmt = $db->prepare("SELECT status FROM background_jobs WHERE id = ?");
+                $stmt->execute([$jobId]);
+                $currentJobStatus = $stmt->fetchColumn();
+
+                if ($currentJobStatus === 'failed') {
+                    error_log("Job $jobId was cancelled by user before generating article, stopping");
+                    break;
+                }
+
                 // Generate article content
                 // Yeni AIService formatı: doğrudan params array alıyor
                 $params = [
@@ -170,6 +203,17 @@ class BackgroundJobProcessor
 
                 // generateArticle() artık doğrudan makale verisini döndürüyor (Exception fırlatıyor hata durumunda)
                 $article = $this->aiService->generateArticle($params);
+
+                // Check if job was cancelled AFTER generating article (before saving)
+                $db = Database::getInstance()->getConnection();
+                $stmt = $db->prepare("SELECT status FROM background_jobs WHERE id = ?");
+                $stmt->execute([$jobId]);
+                $currentJobStatus = $stmt->fetchColumn();
+
+                if ($currentJobStatus === 'failed') {
+                    error_log("Job $jobId was cancelled by user after generating article, stopping (article not saved)");
+                    break;
+                }
 
                 // Save article to database
                 $data = [
