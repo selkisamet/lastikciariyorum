@@ -6,7 +6,9 @@ require_once __DIR__ . '/../models/District.php';
 require_once __DIR__ . '/../models/Company.php';
 require_once __DIR__ . '/../models/Article.php';
 require_once __DIR__ . '/../models/DeletionRequest.php';
+require_once __DIR__ . '/../models/BackgroundJob.php';
 require_once __DIR__ . '/../services/AIService.php';
+require_once __DIR__ . '/../services/BackgroundJobProcessor.php';
 
 class AdminController extends Controller
 {
@@ -16,6 +18,7 @@ class AdminController extends Controller
     private $articleModel;
     private $deletionRequestModel;
     private $userModel;
+    private $backgroundJobModel;
 
     public function __construct()
     {
@@ -25,6 +28,7 @@ class AdminController extends Controller
         $this->articleModel = new Article();
         $this->deletionRequestModel = new DeletionRequest();
         $this->userModel = new User();
+        $this->backgroundJobModel = new BackgroundJob();
 
         // Check if user is admin
         if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'admin') {
@@ -1402,8 +1406,8 @@ class AdminController extends Controller
             // AI isteği bitti, şimdi veritabanı işlemlerini yap
             // Database sınıfı otomatik olarak reconnect yapacak
 
-            // Slug üret
-            $slug = $this->generateSlug($articleData['title']);
+            // Slug kullanılmıyor (HUB mimarisi)
+            $slug = null;
 
             // Otomatik yayınla veya preview
             if ($autoPublish) {
@@ -1612,53 +1616,29 @@ class AdminController extends Controller
                 throw new Exception('Oluşturulacak makale konumu bulunamadı.');
             }
 
-            // AI Service ile toplu üretim
-            $aiService = new AIService();
-            $results = $aiService->generateBulkArticles($locations, $primaryKeyword, $keywords, $wordCount);
+            // Create background job instead of processing synchronously
+            $payload = [
+                'locations' => $locations,
+                'primary_keyword' => $primaryKeyword,
+                'keywords' => $keywords,
+                'word_count' => $wordCount,
+                'auto_publish' => $autoPublish,
+                'user_id' => $_SESSION['user_id'],
+            ];
 
-            // Başarılı makaleleri kaydet
-            $successCount = 0;
-            $errorCount = 0;
-            $errors = [];
+            $jobId = $this->backgroundJobModel->create(
+                'bulk_article_generation',
+                $payload,
+                $_SESSION['user_id'],
+                count($locations)
+            );
 
-            foreach ($results as $result) {
-                if ($result['success']) {
-                    $location = $result['location'];
-                    $article = $result['article'];
-
-                    $data = [
-                        'city_id' => $location['city_id'],
-                        'district_id' => $location['district_id'],
-                        'title' => $article['title'],
-                        'slug' => $this->generateSlug($article['title']),
-                        'content' => $article['content'],
-                        'excerpt' => $article['excerpt'],
-                        'meta_title' => $article['meta_title'],
-                        'meta_description' => $article['meta_description'],
-                        'author_id' => $_SESSION['user_id'],
-                        'is_published' => $autoPublish ? 1 : 0,
-                        'published_at' => $autoPublish ? date('Y-m-d H:i:s') : null,
-                    ];
-
-                    $this->articleModel->create($data);
-                    $successCount++;
-                } else {
-                    $errorCount++;
-                    $locationName = $result['location']['district_name']
-                        ? $result['location']['district_name'] . ', ' . $result['location']['city_name']
-                        : $result['location']['city_name'];
-                    $errors[] = "{$locationName}: " . $result['error'];
-                }
+            if (!$jobId) {
+                throw new Exception('Arka plan işi oluşturulamadı.');
             }
 
-            // Sonuç mesajı
-            $message = "{$successCount} makale başarıyla oluşturuldu.";
-            if ($errorCount > 0) {
-                $message .= " {$errorCount} hata oluştu.";
-                $_SESSION['bulk_generation_errors'] = $errors;
-            }
-
-            $_SESSION['success'] = $message;
+            $_SESSION['success'] = count($locations) . ' makale için üretim başlatıldı. İşlem arka planda devam ediyor.';
+            $_SESSION['job_id'] = $jobId;
             $this->redirect('/admin/ai-makale-sonuc');
 
         } catch (Exception $e) {
@@ -1672,13 +1652,131 @@ class AdminController extends Controller
      */
     public function bulkGenerationResult()
     {
-        $errors = $_SESSION['bulk_generation_errors'] ?? [];
-        unset($_SESSION['bulk_generation_errors']);
+        $jobId = $_SESSION['job_id'] ?? null;
+
+        if (!$jobId) {
+            $_SESSION['error'] = 'İş ID bulunamadı.';
+            $this->redirect('/admin/ai-makale-uret');
+            return;
+        }
+
+        $job = $this->backgroundJobModel->find($jobId);
+
+        if (!$job) {
+            $_SESSION['error'] = 'İş bulunamadı.';
+            $this->redirect('/admin/ai-makale-uret');
+            return;
+        }
+
+        $results = $this->backgroundJobModel->getResults($jobId);
 
         $this->view('admin.ai-article-result', [
             'pageTitle' => 'Toplu Üretim Sonucu',
-            'errors' => $errors,
+            'job' => $job,
+            'results' => $results,
         ]);
+    }
+
+    /**
+     * Get job status (AJAX endpoint)
+     */
+    public function getJobStatus()
+    {
+        header('Content-Type: application/json');
+
+        $jobId = $_GET['job_id'] ?? null;
+
+        if (!$jobId) {
+            echo json_encode(['error' => 'Job ID required']);
+            return;
+        }
+
+        $job = $this->backgroundJobModel->find($jobId);
+
+        if (!$job) {
+            echo json_encode(['error' => 'Job not found']);
+            return;
+        }
+
+        $results = $this->backgroundJobModel->getResults($jobId);
+
+        echo json_encode([
+            'success' => true,
+            'job' => $job,
+            'results' => $results,
+        ]);
+    }
+
+    /**
+     * Trigger job processor manually (AJAX endpoint)
+     * TEMPORARILY DISABLED - Async processing causes server overload
+     */
+    public function triggerJobProcessor()
+    {
+        header('Content-Type: application/json');
+
+        try {
+            // DISABLED: Return message to use manual processor instead
+            echo json_encode([
+                'success' => false,
+                'error' => 'Async processing geçici olarak devre dışı. Lütfen manuel olarak /run-job-processor.php sayfasını açın.',
+                'manual_url' => '/run-job-processor.php'
+            ]);
+            return;
+
+            // Get JSON input
+            $input = json_decode(file_get_contents('php://input'), true);
+            $jobId = $input['job_id'] ?? null;
+
+            if (!$jobId) {
+                echo json_encode(['success' => false, 'error' => 'Job ID required']);
+                return;
+            }
+
+            // Verify job exists and is pending
+            $job = $this->backgroundJobModel->find($jobId);
+            if (!$job) {
+                echo json_encode(['success' => false, 'error' => 'Job not found']);
+                return;
+            }
+
+            if ($job['status'] !== 'pending') {
+                echo json_encode(['success' => false, 'error' => 'Job is not pending (current status: ' . $job['status'] . ')']);
+                return;
+            }
+
+            // Instead of processing synchronously, trigger async processing
+            // by calling the web-based processor in background
+            $baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://" . $_SERVER['HTTP_HOST'];
+            $processorUrl = $baseUrl . dirname($_SERVER['SCRIPT_NAME']) . '/run-job-processor.php?async=1';
+
+            // Use cURL with timeout to trigger async mode
+            $ch = curl_init($processorUrl);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 5); // 5 seconds - enough for async trigger
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, ['X-Requested-With: XMLHttpRequest']);
+
+            // Execute request
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            // Check if trigger was successful
+            if ($httpCode !== 200) {
+                throw new Exception('Failed to trigger job processor (HTTP ' . $httpCode . ')');
+            }
+
+            echo json_encode([
+                'success' => true,
+                'message' => 'Job processor triggered in background',
+                'job_id' => $jobId
+            ]);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
     }
 
     /**
@@ -1795,6 +1893,41 @@ class AdminController extends Controller
             $keywords = $aiService->generateKeywordSuggestions($city, $district, $primaryKeyword);
 
             echo json_encode(['success' => true, 'keywords' => $keywords]);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+    }
+
+    public function getDistrictsForCities()
+    {
+        header('Content-Type: application/json');
+
+        try {
+            // Get JSON input
+            $input = json_decode(file_get_contents('php://input'), true);
+            $cityIds = $input['city_ids'] ?? [];
+
+            if (empty($cityIds)) {
+                echo json_encode(['success' => false, 'error' => 'İl seçimi yapılmadı.']);
+                return;
+            }
+
+            // Fetch districts for the selected cities
+            $db = Database::getInstance()->getConnection();
+            $placeholders = implode(',', array_fill(0, count($cityIds), '?'));
+
+            $stmt = $db->prepare("
+                SELECT d.id, d.name, d.city_id, c.name as city_name
+                FROM districts d
+                JOIN cities c ON d.city_id = c.id
+                WHERE d.city_id IN ($placeholders)
+                ORDER BY c.name ASC, d.name ASC
+            ");
+
+            $stmt->execute($cityIds);
+            $districts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            echo json_encode(['success' => true, 'districts' => $districts]);
         } catch (Exception $e) {
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);
         }
